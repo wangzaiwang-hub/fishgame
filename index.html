@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>钓鱼游戏</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #001122;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #gameCanvas {
+            display: block;
+            background-color: #000;
+        }
+        
+        #gameControls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+        }
+        
+        button {
+            background-color: rgba(0, 102, 204, 0.8);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 0 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            backdrop-filter: blur(5px);
+        }
+        
+        button:hover {
+            background-color: rgba(0, 136, 255, 0.9);
+        }
+        
+        button:disabled {
+            background-color: rgba(102, 102, 102, 0.8);
+            cursor: not-allowed;
+        }
+        
+        #score {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 18px;
+            z-index: 100;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+            backdrop-filter: blur(5px);
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        <div id="gameControls">
+            <button id="startBtn">开始游戏</button>
+            <button id="pauseBtn" disabled>暂停</button>
+            <button id="restartBtn" disabled>重新开始</button>
+        </div>
+        <div id="instructions" style="position: absolute; bottom: 20px; left: 20px; color: white; background-color: rgba(0, 0, 0, 0.5); padding: 10px; border-radius: 5px; font-size: 14px;">
+            操作说明：<br>
+            A/D 键：左右移动<br>
+            空格键：投放鱼钩<br>
+            鼠标点击：投放鱼钩到指定深度
+        </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/entity.js"></script>
+    <script src="js/resourceLoader.js"></script>
+    <script src="js/fish.js"></script>
+    <script src="js/hook.js"></script>
+    <script src="js/player.js"></script>
+    <script src="js/entityManager.js"></script>
+    <script src="js/collisionDetector.js"></script>
+    <script src="js/scoreManager.js"></script>
+    <script src="js/inputHandler.js"></script>
+    <script src="js/sceneManager.js"></script>
+    <script src="js/game.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
