@@ -20,6 +20,7 @@ const GameState = {
     PLAYING: 'playing',
     PAUSED: 'paused',
     TIME_UP: 'time_up',
+    GAME_SETTLEMENT: 'game_settlement',
     END_DIALOG: 'end_dialog',
     GAME_OVER: 'game_over'
 };
@@ -46,6 +47,7 @@ const ResourcePaths = {
     PLAYER: 'resource/me.png',
     GUIDE: 'resource/man.png',
     MESSAGE: 'resource/message.png',
+    GAMEOVER: 'resource/gameover.png',
     BUTTON_ONE: 'resource/one.png',
     BUTTON_TWO: 'resource/two.png',
     BUTTON_THREE: 'resource/three.png',

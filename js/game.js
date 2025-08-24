@@ -91,6 +91,9 @@ class Game {
             // 创建对话管理器
             this.dialogManager = new DialogManager(this.ctx, this.resourceLoader.resources);
             
+            // 创建结算管理器
+            this.settlementManager = new SettlementManager(this.ctx, this.resourceLoader.resources);
+            
             // 设置时间管理器回调
             this.timeManager.setTimeUpCallback(() => {
                 this.onTimeUp();
@@ -107,7 +110,18 @@ class Game {
             
             // 设置输入处理器的回调（鼠标点击仍然可用）
             this.inputHandler.setClickCallback((x, y) => {
-                // 先检查对话系统是否处理了点击
+                // 先检查结算系统是否处理了点击
+                if (this.settlementManager && this.state === GameState.GAME_SETTLEMENT) {
+                    if (this.settlementManager.handleClick(x, y)) {
+                        // 结算完成，进入结束对话
+                        this.state = GameState.END_DIALOG;
+                        this.settlementManager.hide();
+                        this.startEndDialog();
+                        return;
+                    }
+                }
+                
+                // 再检查对话系统是否处理了点击
                 if (this.dialogManager && this.dialogManager.handleClick(x, y)) {
                     return; // 对话系统处理了点击，不再处理游戏点击
                 }
@@ -148,6 +162,9 @@ class Game {
     onTimeSelected(timeOption) {
         console.log(`选择了时间选项: ${timeOption}`);
         
+        // 保存当前选择的时间选项
+        this.currentTimeOption = timeOption;
+        
         // 先完全重置游戏状态
         this.resetGameState();
         
@@ -173,9 +190,14 @@ class Game {
     // 处理时间到了
     onTimeUp() {
         console.log('游戏时间到了');
-        this.state = GameState.END_DIALOG;
+        this.state = GameState.GAME_SETTLEMENT;
         this.timeManager.stop();
-        this.startEndDialog();
+        
+        // 获取当前选择的时间选项
+        const timeOption = this.currentTimeOption || 1;
+        
+        // 开始结算动画
+        this.settlementManager.startSettlement(timeOption, this.scoreManager);
     }
     
     // 开始结束对话
@@ -363,6 +385,11 @@ class Game {
             this.dialogManager.update(deltaTime);
         }
         
+        // 更新结算管理器
+        if (this.settlementManager && this.state === GameState.GAME_SETTLEMENT) {
+            this.settlementManager.update(deltaTime);
+        }
+        
         // 更新时间管理器
         this.timeManager.update(deltaTime);
 
@@ -397,12 +424,25 @@ class Game {
         
         // 对话系统优先渲染（仅在欢迎对话和结束对话状态下显示）
         if (this.dialogManager && this.dialogManager.shouldShow(this.state)) {
-            console.log('渲染对话系统');
+            // console.log('渲染对话系统');
             this.dialogManager.render();
         }
         
+        // 结算画面渲染（最高优先级）
+        if (this.settlementManager && this.state === GameState.GAME_SETTLEMENT) {
+            // 结算状态下也渲染游戏实体作为背景
+            this.entityManager.render(this.ctx);
+            this.scoreManager.renderScoreAnimations(this.ctx);
+            this.timeManager.renderTimeDisplay(this.ctx);
+            this.renderUI();
+            
+            // 然后渲染结算画面
+            this.settlementManager.render();
+            return;
+        }
+        
         // 只在非对话状态下渲染游戏实体
-        if (this.state !== GameState.WELCOME_DIALOG && this.state !== GameState.END_DIALOG) {
+        if (this.state !== GameState.WELCOME_DIALOG && this.state !== GameState.END_DIALOG && this.state !== GameState.GAME_SETTLEMENT) {
             // 渲染实体
             this.entityManager.render(this.ctx);
             
@@ -451,7 +491,7 @@ class Game {
         this.ctx.shadowOffsetX = 0;
         this.ctx.shadowOffsetY = 0;
         
-        console.log(`分数UI渲染 - 位置: (${leftMargin}, ${topMargin}), 分数: ${this.scoreManager.getScore()}, 最高分: ${this.scoreManager.getHighScore()}, 捕获: ${this.scoreManager.getFishCaught()}`);
+        // console.log(`分数UI渲染 - 位置: (${leftMargin}, ${topMargin}), 分数: ${this.scoreManager.getScore()}, 最高分: ${this.scoreManager.getHighScore()}, 捕获: ${this.scoreManager.getFishCaught()}`);
         
         // 根据游戏状态渲染提示信息
         if (this.state === GameState.MENU) {

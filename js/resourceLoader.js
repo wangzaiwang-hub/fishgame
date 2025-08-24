@@ -60,6 +60,11 @@ class ResourceLoader {
             this.loadImage('message', ResourcePaths.MESSAGE)
         );
         
+        // 加载游戏结算相关资源
+        resourcesToLoad.push(
+            this.loadImage('gameover', ResourcePaths.GAMEOVER)
+        );
+        
         resourcesToLoad.push(
             this.loadImage('one', ResourcePaths.BUTTON_ONE)
         );
