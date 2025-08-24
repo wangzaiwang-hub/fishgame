@@ -37,6 +37,13 @@ class Game {
         this.canvas.height = window.innerHeight;
         GameConfig.CANVAS_WIDTH = window.innerWidth;
         GameConfig.CANVAS_HEIGHT = window.innerHeight;
+        
+        // 通知对话管理器更新布局，确保按钮居中
+        if (this.dialogManager) {
+            this.dialogManager.updateLayout();
+        }
+        
+        console.log(`画布尺寸调整为: ${this.canvas.width} x ${this.canvas.height}`);
     }
 
     // 绑定键盘事件
@@ -412,17 +419,39 @@ class Game {
 
     // 渲染UI元素
     renderUI() {
-        // 渲染分数和统计信息
-        this.ctx.fillStyle = 'white';
-        this.ctx.font = '24px Arial';
-        this.ctx.fillText(`分数: ${this.scoreManager.getScore()}`, 20, 40);
+        // 固定在左上角的分数统计信息
+        const leftMargin = 20;  // 左边距
+        const topMargin = 30;   // 上边距
+        const lineHeight = 25;  // 行高
+        
+        // 设置文字样式（移除背景，只显示白色文字）
+        this.ctx.fillStyle = '#FFFFFF';
+        this.ctx.font = 'bold 22px Arial';
+        this.ctx.textAlign = 'left';
+        
+        // 添加文字阴影效果，提升可读性
+        this.ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+        this.ctx.shadowBlur = 3;
+        this.ctx.shadowOffsetX = 1;
+        this.ctx.shadowOffsetY = 1;
+        
+        // 渲染分数信息（固定在左上角）
+        this.ctx.fillText(`分数: ${this.scoreManager.getScore()}`, leftMargin, topMargin);
         
         // 渲染最高分
-        this.ctx.font = '18px Arial';
-        this.ctx.fillText(`最高分: ${this.scoreManager.getHighScore()}`, 20, 70);
+        this.ctx.font = 'bold 18px Arial';
+        this.ctx.fillText(`最高分: ${this.scoreManager.getHighScore()}`, leftMargin, topMargin + lineHeight);
         
         // 渲染捕获数量
-        this.ctx.fillText(`捕获: ${this.scoreManager.getFishCaught()} 条`, 20, 95);
+        this.ctx.fillText(`捕获: ${this.scoreManager.getFishCaught()} 条`, leftMargin, topMargin + lineHeight * 2);
+        
+        // 清除阴影效果，避免影响其他渲染
+        this.ctx.shadowColor = 'transparent';
+        this.ctx.shadowBlur = 0;
+        this.ctx.shadowOffsetX = 0;
+        this.ctx.shadowOffsetY = 0;
+        
+        console.log(`分数UI渲染 - 位置: (${leftMargin}, ${topMargin}), 分数: ${this.scoreManager.getScore()}, 最高分: ${this.scoreManager.getHighScore()}, 捕获: ${this.scoreManager.getFishCaught()}`);
         
         // 根据游戏状态渲染提示信息
         if (this.state === GameState.MENU) {
@@ -451,7 +480,6 @@ class Game {
         const startBtn = document.getElementById('startBtn');
         const pauseBtn = document.getElementById('pauseBtn');
         const restartBtn = document.getElementById('restartBtn');
-        const scoreElement = document.getElementById('score');
 
         switch (this.state) {
             case GameState.WELCOME_DIALOG:
@@ -489,10 +517,9 @@ class Game {
                 restartBtn.disabled = true;
                 break;
         }
-
-        if (scoreElement) {
-            scoreElement.textContent = `分数: ${this.scoreManager.getScore()}`;
-        }
+        
+        // 分数现在由Canvas渲染，不再需要更新HTML元素
+        console.log('按钮UI状态更新完成');
     }
 
     // 停止游戏循环

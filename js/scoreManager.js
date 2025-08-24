@@ -96,12 +96,10 @@ class ScoreManager {
         }
     }
 
-    // 更新分数显示
+    // 更新分数显示（现在由Canvas渲染，不再需要HTML元素）
     updateScoreDisplay() {
-        const scoreElement = document.getElementById('score');
-        if (scoreElement) {
-            scoreElement.textContent = `分数: ${this.score}`;
-        }
+        // 分数现在完全由Canvas渲染，不再需要更新HTML元素
+        console.log(`分数更新: 当前分数 ${this.score}, 最高分 ${this.highScore}, 捕获 ${this.fishCaught} 条`);
     }
 
     // 添加分数更新回调

@@ -105,29 +105,38 @@ class DialogManager {
     updateButtonSizes() {
         const centerX = this.canvas.width / 2;
         const centerY = this.canvas.height / 2;
-        const buttonSpacing = 120; // 增加按钮间距，从80改为120
+        const buttonSpacing = 120; // 按钮间距
         
         // 获取图片的实际尺寸，如果图片未加载则使用默认尺寸
         const buttonWidth = this.oneImage ? this.oneImage.width : 100;
         const buttonHeight = this.oneImage ? this.oneImage.height : 60;
         
-        console.log(`按钮尺寸: ${buttonWidth} x ${buttonHeight}, 间距: ${buttonSpacing}`);
+        // 标题位置： centerY - 150，所以按钮起始位置应该在标题下方25px
+        const titleY = centerY - 150;
+        const buttonsStartY = titleY + 25; // 标题下方25px的间距
         
-        // 更新按钮位置和尺寸
+        console.log(`按钮布局: 屏幕中心(${centerX}, ${centerY}), 标题Y: ${titleY}, 按钮起始Y: ${buttonsStartY}, 按钮尺寸(${buttonWidth} x ${buttonHeight}), 间距: ${buttonSpacing}`);
+        
+        // 按钮水平居中，垂直从标题下方25px开始排列
         this.buttons.one.x = centerX - buttonWidth / 2;
-        this.buttons.one.y = centerY - buttonSpacing;
+        this.buttons.one.y = buttonsStartY;
         this.buttons.one.width = buttonWidth;
         this.buttons.one.height = buttonHeight;
         
         this.buttons.two.x = centerX - buttonWidth / 2;
-        this.buttons.two.y = centerY;
+        this.buttons.two.y = buttonsStartY + buttonSpacing;
         this.buttons.two.width = buttonWidth;
         this.buttons.two.height = buttonHeight;
         
         this.buttons.three.x = centerX - buttonWidth / 2;
-        this.buttons.three.y = centerY + buttonSpacing;
+        this.buttons.three.y = buttonsStartY + buttonSpacing * 2;
         this.buttons.three.width = buttonWidth;
         this.buttons.three.height = buttonHeight;
+        
+        console.log(`按钮位置计算完成:`);
+        console.log(`  按钮1: (${this.buttons.one.x}, ${this.buttons.one.y})`);
+        console.log(`  按钮2: (${this.buttons.two.x}, ${this.buttons.two.y})`);
+        console.log(`  按钮3: (${this.buttons.three.x}, ${this.buttons.three.y})`);
     }
     
     // 响应式布局：在窗口大小变化时重新计算位置
@@ -135,14 +144,18 @@ class DialogManager {
         // 更新画布尺寸
         this.canvas = this.ctx.canvas;
         
+        console.log(`窗口尺寸变化: ${this.canvas.width} x ${this.canvas.height}`);
+        
         // 重新计算角色位置
         this.manY = Math.max(50, this.canvas.height - 500);
         this.targetManX = this.canvas.width - 350;
         this.messageX = this.canvas.width - 500;
         this.messageY = Math.max(100, this.canvas.height - 450);
         
-        // 重新计算按钮位置
+        // 重新计算按钮位置，确保始终居中显示
         this.updateButtonSizes();
+        
+        console.log('响应式布局更新完成');
     }
     
     // 开始欢迎对话

@@ -131,24 +131,32 @@ class TimeManager {
             return; // 游戏还未开始，不显示时间
         }
         
-        // 渲染剩余时间
+        // 渲染剩余时间（透明背景，白色文字）
         ctx.save();
+        
+        // 设置文字颜色和阴影效果
         ctx.fillStyle = this.remainingTime < 30 ? '#FF4444' : '#FFFFFF'; // 少于30秒时红色警告
         ctx.font = 'bold 24px Arial';
         ctx.textAlign = 'center';
+        
+        // 添加文字阴影效果，提升可读性
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+        ctx.shadowBlur = 3;
+        ctx.shadowOffsetX = 1;
+        ctx.shadowOffsetY = 1;
         
         const timeText = `剩余时间: ${this.getFormattedTime()}`;
         const x = ctx.canvas.width / 2;
         const y = 40;
         
-        // 添加背景
-        const textWidth = ctx.measureText(timeText).width;
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        ctx.fillRect(x - textWidth/2 - 10, y - 25, textWidth + 20, 35);
-        
-        // 渲染文字
-        ctx.fillStyle = this.remainingTime < 30 ? '#FF4444' : '#FFFFFF';
+        // 直接渲染文字，不添加背景
         ctx.fillText(timeText, x, y);
+        
+        // 清除阴影效果
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
         
         // 渲染时间进度条
         this.renderTimeProgressBar(ctx);
