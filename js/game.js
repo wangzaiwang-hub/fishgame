@@ -17,6 +17,8 @@ class Game {
         this.collisionDetector = new CollisionDetector();
         this.scoreManager = new ScoreManager();
         this.inputHandler = new InputHandler(this.canvas);
+        this.dialogManager = null; // 将在初始化时创建
+        this.timeManager = new TimeManager();
         this.player = null; // 玩家实体
         
         // 绑定事件
@@ -40,6 +42,11 @@ class Game {
     // 绑定键盘事件
     bindKeyboardEvents() {
         window.addEventListener('keydown', (event) => {
+            // 先检查对话系统是否处理了按键
+            if (this.dialogManager && this.dialogManager.handleKeyPress()) {
+                return; // 对话系统处理了按键，不再处理游戏按键
+            }
+            
             if (this.player && this.state === GameState.PLAYING) {
                 this.player.setKey(event.key, true);
             }
@@ -74,6 +81,14 @@ class Game {
             // 设置实体管理器的资源
             this.entityManager.setResources(this.resourceLoader.resources);
             
+            // 创建对话管理器
+            this.dialogManager = new DialogManager(this.ctx, this.resourceLoader.resources);
+            
+            // 设置时间管理器回调
+            this.timeManager.setTimeUpCallback(() => {
+                this.onTimeUp();
+            });
+            
             // 创建玩家实体（离上方130px）
             this.player = new Player(50, 130, this.resourceLoader.resources);
             this.entityManager.addEntity(this.player);
@@ -85,6 +100,11 @@ class Game {
             
             // 设置输入处理器的回调（鼠标点击仍然可用）
             this.inputHandler.setClickCallback((x, y) => {
+                // 先检查对话系统是否处理了点击
+                if (this.dialogManager && this.dialogManager.handleClick(x, y)) {
+                    return; // 对话系统处理了点击，不再处理游戏点击
+                }
+                
                 if (this.state === GameState.PLAYING) {
                     this.castHookVertical(x, y);
                 }
@@ -98,6 +118,11 @@ class Game {
             });
             
             console.log('游戏初始化完成');
+            
+            // 设置初始状态为欢迎对话
+            this.state = GameState.WELCOME_DIALOG;
+            this.startWelcomeDialog();
+            
             return true;
         } catch (error) {
             console.error('游戏初始化失败:', error);
@@ -105,21 +130,136 @@ class Game {
         }
     }
 
-    // 绑定UI事件
+    // 开始欢迎对话
+    startWelcomeDialog() {
+        this.dialogManager.startWelcomeDialog((timeOption) => {
+            this.onTimeSelected(timeOption);
+        });
+    }
+    
+    // 处理时间选择
+    onTimeSelected(timeOption) {
+        console.log(`选择了时间选项: ${timeOption}`);
+        
+        // 先完全重置游戏状态
+        this.resetGameState();
+        
+        // 设置新的游戏时间
+        this.timeManager.setGameTime(timeOption);
+        
+        // 隐藏对话管理器
+        if (this.dialogManager) {
+            this.dialogManager.hide();
+        }
+        
+        // 直接开始游戏，不进入菜单状态
+        this.state = GameState.PLAYING;
+        this.timeManager.start(); // 开始计时
+        this.updateUI();
+        
+        if (!this.animationId) {
+            this.lastTime = performance.now();
+            this.gameLoop();
+        }
+    }
+    
+    // 处理时间到了
+    onTimeUp() {
+        console.log('游戏时间到了');
+        this.state = GameState.END_DIALOG;
+        this.timeManager.stop();
+        this.startEndDialog();
+    }
+    
+    // 开始结束对话
+    startEndDialog() {
+        this.dialogManager.startEndDialog((replayOption) => {
+            this.onReplaySelected(replayOption);
+        });
+    }
+    
+    // 处理重玩选择
+    onReplaySelected(replayOption) {
+        console.log(`选择了重玩选项: ${replayOption}`);
+        if (replayOption === 1 || replayOption === 2 || replayOption === 3) {
+            // 先完全重置游戏状态
+            this.resetGameState();
+            
+            // 设置新的游戏时间
+            this.timeManager.setGameTime(replayOption);
+            
+            // 直接开始游戏
+            this.state = GameState.PLAYING;
+            this.timeManager.start(); // 开始计时
+            this.updateUI();
+            
+            if (!this.animationId) {
+                this.lastTime = performance.now();
+                this.gameLoop();
+            }
+        } else {
+            // 结束游戏
+            this.state = GameState.GAME_OVER;
+            this.updateUI();
+        }
+    }
     bindEvents() {
         const startBtn = document.getElementById('startBtn');
         const pauseBtn = document.getElementById('pauseBtn');
         const restartBtn = document.getElementById('restartBtn');
 
-        startBtn.addEventListener('click', () => this.start());
+        startBtn.addEventListener('click', () => {
+            if (startBtn.textContent === '退出游戏') {
+                this.exitGame();
+            } else {
+                this.start();
+            }
+        });
         pauseBtn.addEventListener('click', () => this.pause());
         restartBtn.addEventListener('click', () => this.restart());
+    }
+
+    // 完全重置游戏状态
+    resetGameState() {
+        console.log('完全重置游戏状态');
+        
+        // 重置分数管理器
+        this.scoreManager.reset();
+        
+        // 清空所有实体
+        this.entityManager.clear();
+        
+        // 重置时间管理器
+        this.timeManager.reset();
+        
+        // 重新创建玩家和鱼钩
+        this.player = new Player(50, 130, this.resourceLoader.resources);
+        this.entityManager.addEntity(this.player);
+        
+        // 创建新的鱼钩
+        const hookPos = this.player.getHookStartPosition();
+        const hook = new Hook(hookPos.x, hookPos.y, this.player);
+        this.entityManager.addEntity(hook);
+        
+        console.log('游戏状态重置完成');
+    }
+
+    // 退出游戏
+    exitGame() {
+        // 停止时间管理器
+        this.timeManager.stop();
+        // 返回到欢迎对话状态
+        this.state = GameState.WELCOME_DIALOG;
+        // 重新开始欢迎对话
+        this.startWelcomeDialog();
+        this.updateUI();
     }
 
     // 开始游戏
     start() {
         if (this.state === GameState.MENU || this.state === GameState.PAUSED) {
             this.state = GameState.PLAYING;
+            this.timeManager.start(); // 开始计时
             this.updateUI();
             
             if (!this.animationId) {
@@ -133,8 +273,10 @@ class Game {
     pause() {
         if (this.state === GameState.PLAYING) {
             this.state = GameState.PAUSED;
+            this.timeManager.pause(); // 暂停计时
             this.updateUI();
         } else if (this.state === GameState.PAUSED) {
+            this.timeManager.resume(); // 继续计时
             this.start();
         }
     }
@@ -144,6 +286,8 @@ class Game {
         this.state = GameState.PLAYING;
         this.scoreManager.reset();
         this.entityManager.clear();
+        this.timeManager.reset(); // 重置计时器
+        this.timeManager.start(); // 开始计时
         
         // 重新创建玩家和鱼钩
         if (this.player) {
@@ -207,6 +351,14 @@ class Game {
         const deltaTime = (currentTime - this.lastTime) / 1000; // 转换为秒
         this.lastTime = currentTime;
 
+        // 更新对话系统
+        if (this.dialogManager) {
+            this.dialogManager.update(deltaTime);
+        }
+        
+        // 更新时间管理器
+        this.timeManager.update(deltaTime);
+
         // 更新游戏状态
         if (this.state === GameState.PLAYING) {
             this.update(deltaTime);
@@ -233,17 +385,29 @@ class Game {
         // 清空画布
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
-        // 渲染场景
+        // 渲染场景背景
         this.sceneManager.render();
         
-        // 渲染实体
-        this.entityManager.render(this.ctx);
+        // 对话系统优先渲染（仅在欢迎对话和结束对话状态下显示）
+        if (this.dialogManager && this.dialogManager.shouldShow(this.state)) {
+            console.log('渲染对话系统');
+            this.dialogManager.render();
+        }
         
-        // 渲染分数动画
-        this.scoreManager.renderScoreAnimations(this.ctx);
-        
-        // 渲染UI
-        this.renderUI();
+        // 只在非对话状态下渲染游戏实体
+        if (this.state !== GameState.WELCOME_DIALOG && this.state !== GameState.END_DIALOG) {
+            // 渲染实体
+            this.entityManager.render(this.ctx);
+            
+            // 渲染分数动画
+            this.scoreManager.renderScoreAnimations(this.ctx);
+            
+            // 渲染时间显示
+            this.timeManager.renderTimeDisplay(this.ctx);
+            
+            // 渲染UI
+            this.renderUI();
+        }
     }
 
     // 渲染UI元素
@@ -290,26 +454,45 @@ class Game {
         const scoreElement = document.getElementById('score');
 
         switch (this.state) {
+            case GameState.WELCOME_DIALOG:
+            case GameState.END_DIALOG:
+                startBtn.disabled = true;
+                startBtn.textContent = '开始游戏';
+                pauseBtn.disabled = true;
+                restartBtn.disabled = true;
+                break;
             case GameState.MENU:
                 startBtn.disabled = false;
+                startBtn.textContent = '开始游戏';
                 pauseBtn.disabled = true;
                 restartBtn.disabled = true;
                 break;
             case GameState.PLAYING:
-                startBtn.disabled = true;
+                startBtn.disabled = false;
+                startBtn.textContent = '退出游戏'; // 将开始按钮改为退出按钮
                 pauseBtn.disabled = false;
                 pauseBtn.textContent = '暂停';
                 restartBtn.disabled = false;
                 break;
             case GameState.PAUSED:
-                startBtn.disabled = true;
+                startBtn.disabled = false;
+                startBtn.textContent = '退出游戏'; // 暂停时也显示退出按钮
                 pauseBtn.disabled = false;
                 pauseBtn.textContent = '继续';
                 restartBtn.disabled = false;
                 break;
+            case GameState.TIME_UP:
+            case GameState.GAME_OVER:
+                startBtn.disabled = true;
+                startBtn.textContent = '开始游戏';
+                pauseBtn.disabled = true;
+                restartBtn.disabled = true;
+                break;
         }
 
-        scoreElement.textContent = `分数: ${this.scoreManager.getScore()}`;
+        if (scoreElement) {
+            scoreElement.textContent = `分数: ${this.scoreManager.getScore()}`;
+        }
     }
 
     // 停止游戏循环

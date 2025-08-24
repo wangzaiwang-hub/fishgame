@@ -14,9 +14,13 @@ const GameConfig = {
 
 // 游戏状态枚举
 const GameState = {
+    WELCOME_DIALOG: 'welcome_dialog',
+    WAITING_START: 'waiting_start',
     MENU: 'menu',
     PLAYING: 'playing',
     PAUSED: 'paused',
+    TIME_UP: 'time_up',
+    END_DIALOG: 'end_dialog',
     GAME_OVER: 'game_over'
 };
 
@@ -41,6 +45,10 @@ const ResourcePaths = {
     BACKGROUND: 'resource/bg.png',
     PLAYER: 'resource/me.png',
     GUIDE: 'resource/man.png',
+    MESSAGE: 'resource/message.png',
+    BUTTON_ONE: 'resource/one.png',
+    BUTTON_TWO: 'resource/two.png',
+    BUTTON_THREE: 'resource/three.png',
     FISH: {
         1: 'resource/1.png',
         2: 'resource/2.png',
@@ -58,4 +66,22 @@ const ResourcePaths = {
         14: 'resource/14.png',
         15: 'resource/15.png'
     }
+};
+
+// 对话配置
+const DialogConfig = {
+    TEXT_SPEED: 80, // 文字显示速度（毫秒）
+    SLIDE_SPEED: 400, // 角色滑动速度
+    WELCOME_TEXT: '我是袁老板，欢迎来到我的鱼塘，你想玩几分钟',
+    END_TEXT: '时间到了，要再玩一次吗'
+};
+
+// 时间配置
+const TimeConfig = {
+    OPTIONS: {
+        1: 1, // 1分钟
+        2: 2, // 2分钟
+        3: 3  // 3分钟
+    },
+    WARNING_TIME: 30 // 少于30秒时显示警告
 };

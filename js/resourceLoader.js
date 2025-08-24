@@ -55,6 +55,23 @@ class ResourceLoader {
             this.loadImage('guide', ResourcePaths.GUIDE)
         );
         
+        // 加载对话相关资源
+        resourcesToLoad.push(
+            this.loadImage('message', ResourcePaths.MESSAGE)
+        );
+        
+        resourcesToLoad.push(
+            this.loadImage('one', ResourcePaths.BUTTON_ONE)
+        );
+        
+        resourcesToLoad.push(
+            this.loadImage('two', ResourcePaths.BUTTON_TWO)
+        );
+        
+        resourcesToLoad.push(
+            this.loadImage('three', ResourcePaths.BUTTON_THREE)
+        );
+        
         // 加载所有鱼类图片
         for (let i = 1; i <= 15; i++) {
             resourcesToLoad.push(
