@@ -88,10 +88,10 @@ class SettlementManager {
     
     // 开始结算动画
     startSettlement(timeOption, scoreManager) {
-        console.log('开始游戏结算动画');
+        console.log('开始游戏结算动画，接收的timeOption:', timeOption);
         console.log('scoreManager状态:', {
             score: scoreManager.getScore(),
-            highScore: scoreManager.getHighScore(),
+            highScore: scoreManager.getHighScoreForTime(timeOption), // 使用指定时间的最高分
             fishCaught: scoreManager.getFishCaught()
         });
         
@@ -99,7 +99,7 @@ class SettlementManager {
         this.settlementData = {
             playTime: timeOption,
             currentScore: scoreManager.getScore(),
-            highScore: scoreManager.getHighScore(),
+            highScore: scoreManager.getHighScoreForTime(timeOption), // 使用指定时间的最高分
             fishCaught: scoreManager.getFishCaught()
         };
         
@@ -372,12 +372,15 @@ class SettlementManager {
     
     // 获取时间文字
     getTimeText(timeOption) {
+        console.log('getTimeText接收的timeOption:', timeOption);
         const timeTexts = {
             1: '一分钟',
             2: '两分钟', 
             3: '三分钟'
         };
-        return timeTexts[timeOption] || '游戏结束';
+        const result = timeTexts[timeOption] || '游戏结束';
+        console.log('返回的时间文字:', result);
+        return result;
     }
     
     // 处理点击事件

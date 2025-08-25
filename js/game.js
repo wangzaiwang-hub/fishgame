@@ -6,6 +6,7 @@ class Game {
         this.state = GameState.MENU;
         this.lastTime = 0;
         this.animationId = null;
+        this.currentTimeOption = 1; // 初始化时间选项，默认为1分钟
         
         // 设置全屏Canvas
         this.resizeCanvas();
@@ -43,6 +44,11 @@ class Game {
             this.dialogManager.updateLayout();
         }
         
+        // 如果玩家已经创建，更新玩家位置
+        if (this.player) {
+            this.updatePlayerPosition();
+        }
+        
         console.log(`画布尺寸调整为: ${this.canvas.width} x ${this.canvas.height}`);
     }
 
@@ -74,6 +80,74 @@ class Game {
             }
         });
     }
+    
+    // 计算相对于背景的位置
+    getBackgroundRelativePosition(relativeX, relativeY) {
+        // relativeX 和 relativeY 是相对于背景的百分比位置（0.0-1.0）
+        // 例如：relativeX=0.1 表示从左侧10%的位置
+        // relativeY=0.15 表示从上方15%的位置
+        return {
+            x: this.canvas.width * relativeX,
+            y: this.canvas.height * relativeY
+        };
+    }
+    
+    // 更新玩家位置（相对于背景）
+    updatePlayerPosition() {
+        if (!this.player) return;
+        
+        // 让玩家始终位于背景的相对位置
+        // X: 从左侧10%的位置
+        // Y: 从上方15%的位置（大致相当于原来的130px）
+        const newPos = this.getBackgroundRelativePosition(0.1, 0.15);
+        this.player.x = newPos.x;
+        this.player.y = newPos.y;
+        
+        // === 玩家图片顶部坐标与背景顶部坐标的相对关系调试信息 ===
+        console.log('\n=== ME图片与BG背景坐标关系 ===');
+        
+        // 背景信息
+        console.log('【背景坐标信息】');
+        console.log(`背景尺寸: ${this.canvas.width} x ${this.canvas.height}`);
+        console.log(`背景左上角坐标 (顶部): (0, 0)`);
+        console.log(`背景右下角坐标 (底部): (${this.canvas.width}, ${this.canvas.height})`);
+        
+        // 玩家图片基本信息
+        console.log('\n【ME图片基本信息】');
+        console.log(`玩家当前坐标 (左上角): (${this.player.x.toFixed(1)}, ${this.player.y.toFixed(1)})`);
+        
+        if (this.player.image) {
+            console.log(`ME图片原始尺寸: ${this.player.image.width} x ${this.player.image.height}`);
+            console.log(`ME图片显示尺寸: ${this.player.width} x ${this.player.height}`);
+            console.log(`ME图片顶部坐标: (${this.player.x.toFixed(1)}, ${this.player.y.toFixed(1)})`);
+            console.log(`ME图片底部坐标: (${this.player.x.toFixed(1)}, ${(this.player.y + this.player.height).toFixed(1)})`);
+            console.log(`ME图片中心坐标: (${(this.player.x + this.player.width/2).toFixed(1)}, ${(this.player.y + this.player.height/2).toFixed(1)})`);
+        } else {
+            console.log('ME图片未加载或不存在');
+        }
+        
+        // 相对于背景的位置关系
+        console.log('\n【ME相对于BG的位置关系】');
+        console.log(`ME图片顶部 相对于 BG顶部:`);
+        console.log(`  - X轴偏移: ${this.player.x.toFixed(1)}px (占背景宽度的 ${(this.player.x / this.canvas.width * 100).toFixed(2)}%)`);
+        console.log(`  - Y轴偏移: ${this.player.y.toFixed(1)}px (占背景高度的 ${(this.player.y / this.canvas.height * 100).toFixed(2)}%)`);
+        
+        console.log(`ME图片左侧 距离 BG左边缘: ${this.player.x.toFixed(1)}px`);
+        console.log(`ME图片顶部 距离 BG顶边缘: ${this.player.y.toFixed(1)}px`);
+        console.log(`ME图片右侧 距离 BG右边缘: ${(this.canvas.width - this.player.x - this.player.width).toFixed(1)}px`);
+        console.log(`ME图片底部 距离 BG底边缘: ${(this.canvas.height - this.player.y - this.player.height).toFixed(1)}px`);
+        
+        // 百分比位置
+        console.log('\n【百分比相对位置】');
+        console.log(`ME在BG中的X位置: ${(this.player.x / this.canvas.width * 100).toFixed(2)}% (设置值: 10.0%)`);
+        console.log(`ME在BG中的Y位置: ${(this.player.y / this.canvas.height * 100).toFixed(2)}% (设置值: 15.0%)`);
+        
+        if (this.player.image) {
+            console.log(`ME图片中心在BG中的位置: X=${((this.player.x + this.player.width/2) / this.canvas.width * 100).toFixed(2)}%, Y=${((this.player.y + this.player.height/2) / this.canvas.height * 100).toFixed(2)}%`);
+        }
+        
+        console.log('=================================\n');
+    }
 
     // 初始化游戏
     async init() {
@@ -99,8 +173,9 @@ class Game {
                 this.onTimeUp();
             });
             
-            // 创建玩家实体（离上方130px）
-            this.player = new Player(50, 130, this.resourceLoader.resources);
+            // 创建玩家实体（位置相对于背景）
+            const playerPos = this.getBackgroundRelativePosition(0.1, 0.15);
+            this.player = new Player(playerPos.x, playerPos.y, this.resourceLoader.resources);
             this.entityManager.addEntity(this.player);
             
             // 创建一个持久的鱼钩实体
@@ -160,13 +235,20 @@ class Game {
     
     // 处理时间选择
     onTimeSelected(timeOption) {
-        console.log(`选择了时间选项: ${timeOption}`);
+        console.log(`选择了时间选项: ${timeOption}`, '类型:', typeof timeOption);
         
         // 保存当前选择的时间选项
         this.currentTimeOption = timeOption;
+        console.log('保存后的currentTimeOption:', this.currentTimeOption, '类型:', typeof this.currentTimeOption);
+        
+        // 设置分数管理器的时间选项
+        this.scoreManager.setTimeOption(timeOption);
         
         // 先完全重置游戏状态
         this.resetGameState();
+        
+        // 检查重置后的值
+        console.log('重置后的currentTimeOption:', this.currentTimeOption, '类型:', typeof this.currentTimeOption);
         
         // 设置新的游戏时间
         this.timeManager.setGameTime(timeOption);
@@ -189,12 +271,15 @@ class Game {
     
     // 处理时间到了
     onTimeUp() {
-        console.log('游戏时间到了');
+        console.log('=== 游戏时间到了 ===');
+        console.log('当前保存的currentTimeOption:', this.currentTimeOption, '类型:', typeof this.currentTimeOption);
+        console.log('=== 即将传递给结算管理器 ===');
         this.state = GameState.GAME_SETTLEMENT;
         this.timeManager.stop();
         
         // 获取当前选择的时间选项
         const timeOption = this.currentTimeOption || 1;
+        console.log('传递给结算管理器的timeOption:', timeOption, '类型:', typeof timeOption);
         
         // 开始结算动画
         this.settlementManager.startSettlement(timeOption, this.scoreManager);
@@ -211,6 +296,13 @@ class Game {
     onReplaySelected(replayOption) {
         console.log(`选择了重玩选项: ${replayOption}`);
         if (replayOption === 1 || replayOption === 2 || replayOption === 3) {
+            // 更新当前时间选项
+            this.currentTimeOption = replayOption;
+            console.log('重玩时更新currentTimeOption为:', this.currentTimeOption);
+            
+            // 设置分数管理器的时间选项
+            this.scoreManager.setTimeOption(replayOption);
+            
             // 先完全重置游戏状态
             this.resetGameState();
             
@@ -251,6 +343,7 @@ class Game {
     // 完全重置游戏状态
     resetGameState() {
         console.log('完全重置游戏状态');
+        console.log('重置前的currentTimeOption:', this.currentTimeOption);
         
         // 重置分数管理器
         this.scoreManager.reset();
@@ -262,7 +355,8 @@ class Game {
         this.timeManager.reset();
         
         // 重新创建玩家和鱼钩
-        this.player = new Player(50, 130, this.resourceLoader.resources);
+        const playerPos = this.getBackgroundRelativePosition(0.1, 0.15);
+        this.player = new Player(playerPos.x, playerPos.y, this.resourceLoader.resources);
         this.entityManager.addEntity(this.player);
         
         // 创建新的鱼钩
@@ -270,11 +364,12 @@ class Game {
         const hook = new Hook(hookPos.x, hookPos.y, this.player);
         this.entityManager.addEntity(hook);
         
-        console.log('游戏状态重置完成');
+        console.log('游戏状态重置完成，当前currentTimeOption:', this.currentTimeOption);
     }
 
     // 退出游戏
     exitGame() {
+        console.log('退出游戏，当前currentTimeOption:', this.currentTimeOption);
         // 停止时间管理器
         this.timeManager.stop();
         // 返回到欢迎对话状态
@@ -312,15 +407,24 @@ class Game {
 
     // 重新开始游戏
     restart() {
+        console.log('重新开始游戏，当前currentTimeOption:', this.currentTimeOption);
         this.state = GameState.PLAYING;
         this.scoreManager.reset();
         this.entityManager.clear();
         this.timeManager.reset(); // 重置计时器
+        
+        // 重新设置游戏时间为当前选择的时间选项
+        if (this.currentTimeOption) {
+            this.timeManager.setGameTime(this.currentTimeOption);
+            console.log('重新设置游戏时间为:', this.currentTimeOption);
+        }
+        
         this.timeManager.start(); // 开始计时
         
         // 重新创建玩家和鱼钩
         if (this.player) {
-            this.player = new Player(50, 130, this.resourceLoader.resources);
+            const playerPos = this.getBackgroundRelativePosition(0.1, 0.15);
+            this.player = new Player(playerPos.x, playerPos.y, this.resourceLoader.resources);
             this.entityManager.addEntity(this.player);
             
             // 创建新的鱼钩

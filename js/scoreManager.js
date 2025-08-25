@@ -2,10 +2,17 @@
 class ScoreManager {
     constructor() {
         this.score = 0;
-        this.highScore = this.loadHighScore();
         this.fishCaught = 0;
+        this.currentTimeOption = 1; // 当前游戏时间选项（1分钟、2分钟、3分钟）
+        this.highScores = this.loadHighScores(); // 按时间分别存储的最高分
         this.scoreCallbacks = [];
         this.recentScores = []; // 最近获得的分数，用于动画效果
+    }
+
+    // 设置当前游戏时间选项
+    setTimeOption(timeOption) {
+        this.currentTimeOption = timeOption;
+        console.log(`设置当前游戏时间为: ${timeOption} 分钟`);
     }
 
     // 添加分数
@@ -22,11 +29,12 @@ class ScoreManager {
             fishType: fishType
         });
         
-        // 检查是否创造新纪录
-        if (this.score > this.highScore) {
-            this.highScore = this.score;
-            this.saveHighScore();
-            console.log(`新纪录！当前最高分: ${this.highScore}`);
+        // 检查是否创造新纪录（按当前时间选项）
+        const currentHighScore = this.getHighScore();
+        if (this.score > currentHighScore) {
+            this.highScores[this.currentTimeOption] = this.score;
+            this.saveHighScores();
+            console.log(`${this.currentTimeOption}分钟模式新纪录！当前最高分: ${this.score}`);
         }
         
         console.log(`获得 ${points} 分！当前总分: ${this.score}`);
@@ -43,9 +51,14 @@ class ScoreManager {
         return this.score;
     }
 
-    // 获取最高分
+    // 获取最高分（当前时间选项）
     getHighScore() {
-        return this.highScore;
+        return this.highScores[this.currentTimeOption] || 0;
+    }
+    
+    // 获取指定时间选项的最高分
+    getHighScoreForTime(timeOption) {
+        return this.highScores[timeOption] || 0;
     }
 
     // 获取捕获的鱼类数量
@@ -76,30 +89,38 @@ class ScoreManager {
         return baseScores[fishType] || 10;
     }
 
-    // 保存最高分到本地存储
-    saveHighScore() {
+    // 保存所有时间选项的最高分到本地存储
+    saveHighScores() {
         try {
-            localStorage.setItem('fishingGameHighScore', this.highScore.toString());
+            localStorage.setItem('fishingGameHighScores', JSON.stringify(this.highScores));
+            console.log('最高分已保存:', this.highScores);
         } catch (error) {
             console.warn('无法保存最高分:', error);
         }
     }
 
-    // 从本地存储加载最高分
-    loadHighScore() {
+    // 从本地存储加载所有时间选项的最高分
+    loadHighScores() {
         try {
-            const saved = localStorage.getItem('fishingGameHighScore');
-            return saved ? parseInt(saved, 10) : 0;
+            const saved = localStorage.getItem('fishingGameHighScores');
+            if (saved) {
+                const scores = JSON.parse(saved);
+                console.log('加载的最高分:', scores);
+                return scores;
+            } else {
+                // 初始化默认最高分
+                return { 1: 0, 2: 0, 3: 0 };
+            }
         } catch (error) {
             console.warn('无法加载最高分:', error);
-            return 0;
+            return { 1: 0, 2: 0, 3: 0 };
         }
     }
 
     // 更新分数显示（现在由Canvas渲染，不再需要HTML元素）
     updateScoreDisplay() {
         // 分数现在完全由Canvas渲染，不再需要更新HTML元素
-        console.log(`分数更新: 当前分数 ${this.score}, 最高分 ${this.highScore}, 捕获 ${this.fishCaught} 条`);
+        console.log(`分数更新: 当前分数 ${this.score}, ${this.currentTimeOption}分钟模式最高分 ${this.getHighScore()}, 捕获 ${this.fishCaught} 条`);
     }
 
     // 添加分数更新回调
