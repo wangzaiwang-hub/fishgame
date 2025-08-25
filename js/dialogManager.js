@@ -11,15 +11,18 @@ class DialogManager {
         this.oneImage = null;
         this.twoImage = null;
         this.threeImage = null;
+        this.amusementImage = null; // 新增：娱乐模式图片
+        this.studyImage = null; // 新增：学习模式图片
         
         // 对话状态
-        this.dialogState = 'hidden'; // hidden, sliding_in, talking, waiting_start, waiting_choice, sliding_out
+        this.dialogState = 'hidden'; // hidden, sliding_in, talking, waiting_start, waiting_mode_choice, waiting_time_choice, sliding_out
         this.currentDialog = '';
         this.displayedText = '';
         this.textIndex = 0;
         this.lastTextTime = 0;
         this.textSpeed = 80; // 每个字显示间隔（毫秒）
         this.waitingForStart = false; // 是否正在等待开始游戏
+        this.currentMode = null; // 当前选择的模式：'amusement' 或 'study'
         
         // 角色动画（让袁老板的右下角与背景右下角对齐）
         // 首先获取缩放后的袁老板尺寸（假设原始尺寸为 300x400，缩放后为 100x133）
@@ -49,7 +52,8 @@ class DialogManager {
         const defaultButtonHeight = 60;
         const buttonSpacing = 120; // 增加按钮间距，从80改为120
         
-        this.buttons = {
+        // 时间选择按钮（纵向排列）
+        this.timeButtons = {
             one: { 
                 x: centerX - defaultButtonWidth / 2, 
                 y: centerY - buttonSpacing, 
@@ -73,9 +77,62 @@ class DialogManager {
             }
         };
         
+        // 模式选择按钮（按癨5行5列网格布局）
+        // 屏幕分为5行：标题在第2行，按钮在第3行
+        // 屏幕分为5列：娱乐模式在第2列，学习模式在第4列
+        const rowHeight = this.canvas.height / 5;  // 每行高度
+        const colWidth = this.canvas.width / 5;    // 每列宽度
+        
+        // 第3行中心作为按钮的Y位置
+        const buttonY = rowHeight * 2.5 - (defaultButtonHeight / 2); // 第3行中心
+        
+        this.modeButtons = {
+            amusement: {
+                x: colWidth * 1.5 - (defaultButtonWidth / 2), // 第2列中心
+                y: buttonY,
+                width: defaultButtonWidth,
+                height: defaultButtonHeight,
+                visible: false
+            },
+            study: {
+                x: colWidth * 3.5 - (defaultButtonWidth / 2), // 第4列中心
+                y: buttonY,
+                width: defaultButtonWidth,
+                height: defaultButtonHeight,
+                visible: false
+            }
+        };
+        
         // 回调函数
+        this.onModeChoice = null; // 新增：模式选择回调
         this.onTimeChoice = null;
+        this.onStudyChoice = null; // 新增：学习选择回调
         this.onReplayChoice = null;
+        
+        // 学习模式选择按钮（纵向排列）
+        this.studyButtons = {
+            beidanci: { 
+                x: centerX - defaultButtonWidth / 2, 
+                y: centerY - buttonSpacing, 
+                width: defaultButtonWidth, 
+                height: defaultButtonHeight, 
+                visible: false 
+            },
+            pindanci: { 
+                x: centerX - defaultButtonWidth / 2, 
+                y: centerY, 
+                width: defaultButtonWidth, 
+                height: defaultButtonHeight, 
+                visible: false 
+            },
+            dancipipei: { 
+                x: centerX - defaultButtonWidth / 2, 
+                y: centerY + buttonSpacing, 
+                width: defaultButtonWidth, 
+                height: defaultButtonHeight, 
+                visible: false 
+            }
+        };
         
         this.setResources();
     }
@@ -88,6 +145,11 @@ class DialogManager {
             this.oneImage = this.resources['one'];
             this.twoImage = this.resources['two'];
             this.threeImage = this.resources['three'];
+            this.amusementImage = this.resources['amusement']; // 新增
+            this.studyImage = this.resources['study']; // 新增
+            this.beidanciImage = this.resources['beidanci']; // 学习模式按钮
+            this.pindanciImage = this.resources['pindanci']; // 学习模式按钮
+            this.dancipipeiImage = this.resources['dancipipei']; // 学习模式按钮
             
             console.log('DialogManager 资源加载状态:');
             console.log('guide (man):', this.manImage ? '加载成功' : '加载失败');
@@ -95,6 +157,11 @@ class DialogManager {
             console.log('one.png:', this.oneImage ? '加载成功' : '加载失败');
             console.log('two.png:', this.twoImage ? '加载成功' : '加载失败');
             console.log('three.png:', this.threeImage ? '加载成功' : '加载失败');
+            console.log('amusement.png:', this.amusementImage ? '加载成功' : '加载失败');
+            console.log('study.png:', this.studyImage ? '加载成功' : '加载失败');
+            console.log('beidanci.png:', this.beidanciImage ? '加载成功' : '加载失败');
+            console.log('pindanci.png:', this.pindanciImage ? '加载成功' : '加载失败');
+            console.log('dancipipei.png:', this.dancipipeiImage ? '加载成功' : '加载失败');
             
             // 根据图片实际尺寸更新按钮位置
             this.updateButtonSizes();
@@ -107,36 +174,112 @@ class DialogManager {
         const centerY = this.canvas.height / 2;
         const buttonSpacing = 120; // 按钮间距
         
-        // 获取图片的实际尺寸，如果图片未加载则使用默认尺寸
-        const buttonWidth = this.oneImage ? this.oneImage.width : 100;
-        const buttonHeight = this.oneImage ? this.oneImage.height : 60;
+        // 获取时间选择按钮的实际尺寸，如果图片未加载则使用默认尺寸
+        const timeButtonWidth = this.oneImage ? this.oneImage.width : 100;
+        const timeButtonHeight = this.oneImage ? this.oneImage.height : 60;
+        
+        // 获取学习选择按钮的实际尺寸，如果图片未加载则使用默认尺寸
+        const studySelectionButtonWidth = this.beidanciImage ? this.beidanciImage.width : 100;
+        const studySelectionButtonHeight = this.beidanciImage ? this.beidanciImage.height : 60;
+        
+        // 获取模式选择按钮的实际尺寸（都缩小到相同高度）
+        // 计算缩放比例，让娱乐模式和学习模式等高
+        let amusementButtonWidth = 100;
+        let amusementButtonHeight = 60;
+        let studyButtonWidth = 100;
+        let studyButtonHeight = 60;
+        
+        if (this.amusementImage && this.studyImage) {
+            // 学习模式缩小6倍的高度作为基准
+            const targetHeight = this.studyImage.height / 6;
+            
+            // 计算娱乐模式需要的缩放比例来达到相同高度
+            const amusementScale = this.amusementImage.height / targetHeight;
+            amusementButtonWidth = this.amusementImage.width / amusementScale;
+            amusementButtonHeight = targetHeight;
+            
+            // 学习模式保持6倍缩小
+            studyButtonWidth = this.studyImage.width / 6;
+            studyButtonHeight = this.studyImage.height / 6;
+        } else if (this.amusementImage) {
+            amusementButtonWidth = this.amusementImage.width / 3;
+            amusementButtonHeight = this.amusementImage.height / 3;
+        } else if (this.studyImage) {
+            studyButtonWidth = this.studyImage.width / 6;
+            studyButtonHeight = this.studyImage.height / 6;
+        }
         
         // 标题位置： centerY - 150，所以按钮起始位置应该在标题下方25px
         const titleY = centerY - 150;
         const buttonsStartY = titleY + 25; // 标题下方25px的间距
         
-        console.log(`按钮布局: 屏幕中心(${centerX}, ${centerY}), 标题Y: ${titleY}, 按钮起始Y: ${buttonsStartY}, 按钮尺寸(${buttonWidth} x ${buttonHeight}), 间距: ${buttonSpacing}`);
+        console.log(`按钮布局: 屏幕中心(${centerX}, ${centerY}), 标题Y: ${titleY}, 按钮起始Y: ${buttonsStartY}`);
+        console.log(`时间按钮尺寸(${timeButtonWidth} x ${timeButtonHeight}), 娱乐按钮尺寸(${amusementButtonWidth} x ${amusementButtonHeight}), 学习按钮尺寸(${studyButtonWidth} x ${studyButtonHeight})`);
         
-        // 按钮水平居中，垂直从标题下方25px开始排列
-        this.buttons.one.x = centerX - buttonWidth / 2;
-        this.buttons.one.y = buttonsStartY;
-        this.buttons.one.width = buttonWidth;
-        this.buttons.one.height = buttonHeight;
+        // 时间选择按钮水平居中，垂直从标题下方25px开始排列
+        this.timeButtons.one.x = centerX - timeButtonWidth / 2;
+        this.timeButtons.one.y = buttonsStartY;
+        this.timeButtons.one.width = timeButtonWidth;
+        this.timeButtons.one.height = timeButtonHeight;
         
-        this.buttons.two.x = centerX - buttonWidth / 2;
-        this.buttons.two.y = buttonsStartY + buttonSpacing;
-        this.buttons.two.width = buttonWidth;
-        this.buttons.two.height = buttonHeight;
+        this.timeButtons.two.x = centerX - timeButtonWidth / 2;
+        this.timeButtons.two.y = buttonsStartY + buttonSpacing;
+        this.timeButtons.two.width = timeButtonWidth;
+        this.timeButtons.two.height = timeButtonHeight;
         
-        this.buttons.three.x = centerX - buttonWidth / 2;
-        this.buttons.three.y = buttonsStartY + buttonSpacing * 2;
-        this.buttons.three.width = buttonWidth;
-        this.buttons.three.height = buttonHeight;
+        this.timeButtons.three.x = centerX - timeButtonWidth / 2;
+        this.timeButtons.three.y = buttonsStartY + buttonSpacing * 2;
+        this.timeButtons.three.width = timeButtonWidth;
+        this.timeButtons.three.height = timeButtonHeight;
         
-        console.log(`按钮位置计算完成:`);
-        console.log(`  按钮1: (${this.buttons.one.x}, ${this.buttons.one.y})`);
-        console.log(`  按钮2: (${this.buttons.two.x}, ${this.buttons.two.y})`);
-        console.log(`  按钮3: (${this.buttons.three.x}, ${this.buttons.three.y})`);
+        // 模式选择按钮水平居中，使用5行5列网格布局
+        // 屏幕分为5行：标题在第2行，按钮在第3行
+        // 屏幕分为5列：娱乐模式在第2列，学习模式在第4列
+        const rowHeight = this.canvas.height / 5;  // 每行高度
+        const colWidth = this.canvas.width / 5;    // 每列宽度
+        
+        // 第3行中心作为按钮的Y位置
+        const amusementButtonY = rowHeight * 2.5 - (amusementButtonHeight / 2); // 第3行中心
+        const studyButtonY = rowHeight * 2.5 - (studyButtonHeight / 2); // 第3行中心
+        
+        this.modeButtons.amusement.x = colWidth * 1.5 - amusementButtonWidth / 2; // 第2列中心
+        this.modeButtons.amusement.y = amusementButtonY;
+        this.modeButtons.amusement.width = amusementButtonWidth;
+        this.modeButtons.amusement.height = amusementButtonHeight;
+        
+        this.modeButtons.study.x = colWidth * 3.5 - studyButtonWidth / 2; // 第4列中心
+        this.modeButtons.study.y = studyButtonY;
+        this.modeButtons.study.width = studyButtonWidth;
+        this.modeButtons.study.height = studyButtonHeight;
+        
+        // 学习选择按钮水平居中，垂直从标题下方25px开始排列
+        this.studyButtons.beidanci.x = centerX - studySelectionButtonWidth / 2;
+        this.studyButtons.beidanci.y = buttonsStartY;
+        this.studyButtons.beidanci.width = studySelectionButtonWidth;
+        this.studyButtons.beidanci.height = studySelectionButtonHeight;
+        
+        this.studyButtons.pindanci.x = centerX - studySelectionButtonWidth / 2;
+        this.studyButtons.pindanci.y = buttonsStartY + buttonSpacing;
+        this.studyButtons.pindanci.width = studySelectionButtonWidth;
+        this.studyButtons.pindanci.height = studySelectionButtonHeight;
+        
+        this.studyButtons.dancipipei.x = centerX - studySelectionButtonWidth / 2;
+        this.studyButtons.dancipipei.y = buttonsStartY + buttonSpacing * 2;
+        this.studyButtons.dancipipei.width = studySelectionButtonWidth;
+        this.studyButtons.dancipipei.height = studySelectionButtonHeight;
+        
+        console.log(`时间按钮位置计算完成:`);
+        console.log(`  按钮1: (${this.timeButtons.one.x}, ${this.timeButtons.one.y})`);
+        console.log(`  按钮2: (${this.timeButtons.two.x}, ${this.timeButtons.two.y})`);
+        console.log(`  按钮3: (${this.timeButtons.three.x}, ${this.timeButtons.three.y})`);
+        console.log(`模式按钮位置计算完成 (5行5列布局):`);
+        console.log(`  屏幕尺寸: ${this.canvas.width} x ${this.canvas.height}`);
+        console.log(`  行高: ${rowHeight}, 列宽: ${colWidth}`);
+        console.log(`  标题Y位置 (第2行中心): ${rowHeight * 1.5}`);
+        console.log(`  娱乐按钮Y位置 (第3行中心): ${amusementButtonY}`);
+        console.log(`  学习按钮Y位置 (第3行中心): ${studyButtonY}`);
+        console.log(`  娱乐模式 (第2列): (${this.modeButtons.amusement.x}, ${this.modeButtons.amusement.y}) 尺寸: ${amusementButtonWidth}x${amusementButtonHeight}`);
+        console.log(`  学习模式 (第4列): (${this.modeButtons.study.x}, ${this.modeButtons.study.y}) 尺寸: ${studyButtonWidth}x${studyButtonHeight}`);
     }
     
     // 响应式布局：在窗口大小变化时重新计算位置
@@ -159,15 +302,15 @@ class DialogManager {
     }
     
     // 开始欢迎对话
-    startWelcomeDialog(onTimeChoice) {
+    startWelcomeDialog() {
         console.log('开始欢迎对话，设置状态为 sliding_in');
-        this.onTimeChoice = onTimeChoice;
         this.dialogState = 'sliding_in';
-        this.currentDialog = '我是袁老板，欢迎来到我的鱼塘，你想玩几分钟';
+        this.currentDialog = '我是袁老板，欢迎来到我的鱼塘'; // 更新为简化的欢迎词
         this.displayedText = '';
         this.textIndex = 0;
         this.lastTextTime = 0;
         this.waitingForStart = false;
+        this.currentMode = null; // 重置模式选择
         
         // 使用动态计算的位置（如果图片已加载）
         if (this.manImage) {
@@ -184,34 +327,67 @@ class DialogManager {
         }
         
         console.log(`重置袁老板位置: 起始(${this.manX}, ${this.manY}) -> 目标(${this.targetManX}, ${this.manY})`);
-        this.hideButtons();
+        this.hideAllButtons();
+    }
+    
+    // 开始模式选择对话
+    startModeSelectionDialog(onModeChoice) {
+        console.log('开始模式选择对话');
+        this.onModeChoice = onModeChoice;
+        this.dialogState = 'talking'; // 直接设置为说话状态，因为袁老板已经在位置上
+        this.currentDialog = DialogConfig.MODE_SELECTION_TEXT; // '请选择游戏模式：娱乐模式还是学习模式'
+        this.displayedText = '';
+        this.textIndex = 0;
+        this.lastTextTime = 0;
+        this.waitingForStart = false;
+        
+        this.hideAllButtons();
+        console.log('模式选择对话开始，待显示文本:', this.currentDialog);
+    }
+    
+    // 开始时间选择对话
+    startTimeSelectionDialog(onTimeChoice) {
+        console.log('开始时间选择对话');
+        this.onTimeChoice = onTimeChoice;
+        this.dialogState = 'talking';
+        this.currentDialog = DialogConfig.TIME_SELECTION_TEXT; // '请选择游戏时长'
+        this.displayedText = '';
+        this.textIndex = 0;
+        this.lastTextTime = 0;
+        this.waitingForStart = false;
+        
+        this.hideAllButtons();
+        console.log('时间选择对话开始，待显示文本:', this.currentDialog);
+    }
+    
+    // 开始学习选择对话
+    startStudySelectionDialog(onStudyChoice) {
+        console.log('开始学习选择对话');
+        this.onStudyChoice = onStudyChoice;
+        this.dialogState = 'talking';
+        this.currentDialog = DialogConfig.STUDY_SELECTION_TEXT; // '请选择学习内容'
+        this.displayedText = '';
+        this.textIndex = 0;
+        this.lastTextTime = 0;
+        this.waitingForStart = false;
+        
+        this.hideAllButtons();
+        console.log('学习选择对话开始，待显示文本:', this.currentDialog);
     }
     
     // 开始结束对话
     startEndDialog(onReplayChoice) {
-        this.onReplayChoice = onReplayChoice;
+        this.onModeChoice = onReplayChoice; // 改为模式选择回调
         this.dialogState = 'sliding_in';
-        this.currentDialog = '时间到了，要再玩一次吗';
+        this.currentDialog = DialogConfig.MODE_SELECTION_TEXT; // 使用模式选择文本
         this.displayedText = '';
         this.textIndex = 0;
         this.lastTextTime = 0;
         this.manX = this.canvas.width; // 重置位置
-        this.hideButtons();
+        this.hideAllButtons();
     }
     
-    // 隐藏所有按钮
-    hideButtons() {
-        this.buttons.one.visible = false;
-        this.buttons.two.visible = false;
-        this.buttons.three.visible = false;
-    }
-    
-    // 显示选择按钮
-    showButtons() {
-        this.buttons.one.visible = true;
-        this.buttons.two.visible = true;
-        this.buttons.three.visible = true;
-    }
+
     
     // 更新对话系统
     update(deltaTime) {
@@ -259,10 +435,28 @@ class DialogManager {
             this.textIndex++;
             this.lastTextTime = currentTime;
             
-            // 文字显示完毕，进入等待开始状态
+            // 文字显示完毕，根据对话内容决定下一个状态
             if (this.textIndex >= this.currentDialog.length) {
-                this.dialogState = 'waiting_start';
-                this.waitingForStart = true;
+                if (this.currentDialog.includes('欢迎来到我的鱼塘')) {
+                    // 欢迎对话结束，等待用户触发进入模式选择
+                    this.dialogState = 'waiting_start';
+                    this.waitingForStart = true;
+                } else if (this.currentDialog.includes('请选择游戏模式')) {
+                    // 模式选择对话结束（包括结束对话），显示模式按钮
+                    this.dialogState = 'waiting_mode_choice';
+                    this.showModeButtons();
+                } else if (this.currentDialog.includes('请选择学习内容')) {
+                    // 学习内容选择对话结束，显示学习按钮
+                    this.dialogState = 'waiting_study_choice';
+                    this.showStudyButtons();
+                } else if (this.currentDialog.includes('请选择游戏时长')) {
+                    // 时间选择对话结束，显示时间按钮
+                    this.dialogState = 'waiting_time_choice';
+                    this.showTimeButtons();
+                } else {
+                    // 其他对话
+                    this.dialogState = 'waiting_choice';
+                }
             }
         }
     }
@@ -416,8 +610,50 @@ class DialogManager {
         }
         
         // 渲染选择按钮
-        if (this.dialogState === 'waiting_choice') {
-            // 渲染选择提示
+        if (this.dialogState === 'waiting_mode_choice') {
+            // 模式选择状态
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            
+            // 渲染标题（第2行居中）
+            this.ctx.fillStyle = '#FFFFFF';
+            this.ctx.font = 'bold 32px Arial';
+            this.ctx.textAlign = 'center';
+            
+            const rowHeight = this.canvas.height / 5;  // 每行高度
+            const titleY = rowHeight * 1.5; // 第2行中心
+            
+            this.ctx.fillText('请选择游戏模式', this.canvas.width / 2, titleY);
+            
+            this.renderModeButtons();
+        } else if (this.dialogState === 'waiting_time_choice') {
+            // 时间选择状态
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            
+            // 渲染标题
+            this.ctx.fillStyle = '#FFFFFF';
+            this.ctx.font = 'bold 32px Arial';
+            this.ctx.textAlign = 'center';
+            
+            this.ctx.fillText('请选择游戏时长', this.canvas.width / 2, this.canvas.height / 2 - 150);
+            
+            this.renderTimeButtons();
+        } else if (this.dialogState === 'waiting_study_choice') {
+            // 学习选择状态
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            
+            // 渲染标题
+            this.ctx.fillStyle = '#FFFFFF';
+            this.ctx.font = 'bold 32px Arial';
+            this.ctx.textAlign = 'center';
+            
+            this.ctx.fillText('请选择学习内容', this.canvas.width / 2, this.canvas.height / 2 - 150);
+            
+            this.renderStudyButtons();
+        } else if (this.dialogState === 'waiting_choice') {
+            // 原有的选择逻辑（结束对话等）
             this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
             
@@ -429,7 +665,7 @@ class DialogManager {
             const titleText = this.currentDialog.includes('玩几分钟') ? '请选择游戏时间' : '是否继续游戏';
             this.ctx.fillText(titleText, this.canvas.width / 2, this.canvas.height / 2 - 150);
             
-            this.renderButtons();
+            this.renderTimeButtons(); // 使用时间按钮
         }
     }
     
@@ -476,33 +712,137 @@ class DialogManager {
         return lines;
     }
     
-    // 渲染按钮
-    renderButtons() {
-        // 使用用户提供的图片素材，使用原始尺寸
-        if (this.buttons.one.visible && this.oneImage) {
-            this.ctx.drawImage(this.oneImage, this.buttons.one.x, this.buttons.one.y);
-        }
-        if (this.buttons.two.visible && this.twoImage) {
-            this.ctx.drawImage(this.twoImage, this.buttons.two.x, this.buttons.two.y);
-        }
-        if (this.buttons.three.visible && this.threeImage) {
-            this.ctx.drawImage(this.threeImage, this.buttons.three.x, this.buttons.three.y);
+    // 渲染模式选择按钮
+    renderModeButtons() {
+        // 娱乐模式按钮（缩放到和学习模式等高）
+        if (this.modeButtons.amusement.visible && this.amusementImage) {
+            // 计算缩放后的尺寸，保持和学习模式等高
+            let scaledWidth, scaledHeight;
+            if (this.studyImage) {
+                const targetHeight = this.studyImage.height / 6;
+                const amusementScale = this.amusementImage.height / targetHeight;
+                scaledWidth = this.amusementImage.width / amusementScale;
+                scaledHeight = targetHeight;
+            } else {
+                scaledWidth = this.amusementImage.width / 3;
+                scaledHeight = this.amusementImage.height / 3;
+            }
+            
+            this.ctx.drawImage(
+                this.amusementImage, 
+                this.modeButtons.amusement.x, 
+                this.modeButtons.amusement.y,
+                scaledWidth,
+                scaledHeight
+            );
+            
+            // 在图片下方渲染“娱乐模式”文字
+            this.ctx.fillStyle = '#FFFFFF';
+            this.ctx.font = 'bold 20px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+            this.ctx.shadowBlur = 3;
+            this.ctx.shadowOffsetX = 1;
+            this.ctx.shadowOffsetY = 1;
+            
+            const textX = this.modeButtons.amusement.x + scaledWidth / 2;
+            const textY = this.modeButtons.amusement.y + scaledHeight + 30; // 图片下方30px
+            this.ctx.fillText('娱乐模式', textX, textY);
         }
         
+        // 学习模式按钮（缩小6倍）
+        if (this.modeButtons.study.visible && this.studyImage) {
+            const scaledWidth = this.studyImage.width / 6; // 再缩小一倍
+            const scaledHeight = this.studyImage.height / 6; // 再缩小一倍
+            this.ctx.drawImage(
+                this.studyImage, 
+                this.modeButtons.study.x, 
+                this.modeButtons.study.y,
+                scaledWidth,
+                scaledHeight
+            );
+            
+            // 在图片下方渲染“学习模式”文字
+            this.ctx.fillStyle = '#FFFFFF';
+            this.ctx.font = 'bold 20px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+            this.ctx.shadowBlur = 3;
+            this.ctx.shadowOffsetX = 1;
+            this.ctx.shadowOffsetY = 1;
+            
+            const textX = this.modeButtons.study.x + scaledWidth / 2;
+            const textY = this.modeButtons.study.y + scaledHeight + 30; // 图片下方30px
+            this.ctx.fillText('学习模式', textX, textY);
+        }
+        
+        // 清除阴影效果
+        this.ctx.shadowColor = 'transparent';
+        this.ctx.shadowBlur = 0;
+        this.ctx.shadowOffsetX = 0;
+        this.ctx.shadowOffsetY = 0;
+        
         // 如果图片未加载，显示备用按钮
-        if (this.buttons.one.visible && !this.oneImage) {
-            this.renderFallbackButton(this.buttons.one, '1分钟'); // 对应 one.png
+        if (this.modeButtons.amusement.visible && !this.amusementImage) {
+            this.renderFallbackModeButton(this.modeButtons.amusement, '娱乐模式');
         }
-        if (this.buttons.two.visible && !this.twoImage) {
-            this.renderFallbackButton(this.buttons.two, '2分钟'); // 对应 two.png
-        }
-        if (this.buttons.three.visible && !this.threeImage) {
-            this.renderFallbackButton(this.buttons.three, '3分钟'); // 对应 three.png
+        if (this.modeButtons.study.visible && !this.studyImage) {
+            this.renderFallbackModeButton(this.modeButtons.study, '学习模式');
         }
     }
     
-    // 渲染备用按钮（当图片未加载时使用）
-    renderFallbackButton(button, text) {
+    // 渲染时间选择按钮
+    renderTimeButtons() {
+        // 使用用户提供的图片素材，使用原始尺寸
+        if (this.timeButtons.one.visible && this.oneImage) {
+            this.ctx.drawImage(this.oneImage, this.timeButtons.one.x, this.timeButtons.one.y);
+        }
+        if (this.timeButtons.two.visible && this.twoImage) {
+            this.ctx.drawImage(this.twoImage, this.timeButtons.two.x, this.timeButtons.two.y);
+        }
+        if (this.timeButtons.three.visible && this.threeImage) {
+            this.ctx.drawImage(this.threeImage, this.timeButtons.three.x, this.timeButtons.three.y);
+        }
+        
+        // 如果图片未加载，显示备用按钮
+        if (this.timeButtons.one.visible && !this.oneImage) {
+            this.renderFallbackButton(this.timeButtons.one, '1分钟');
+        }
+        if (this.timeButtons.two.visible && !this.twoImage) {
+            this.renderFallbackButton(this.timeButtons.two, '2分钟');
+        }
+        if (this.timeButtons.three.visible && !this.threeImage) {
+            this.renderFallbackButton(this.timeButtons.three, '3分钟');
+        }
+    }
+    
+    // 渲染学习选择按钮
+    renderStudyButtons() {
+        // 使用学习模式的图片素材，使用原始尺寸
+        if (this.studyButtons.beidanci.visible && this.beidanciImage) {
+            this.ctx.drawImage(this.beidanciImage, this.studyButtons.beidanci.x, this.studyButtons.beidanci.y);
+        }
+        if (this.studyButtons.pindanci.visible && this.pindanciImage) {
+            this.ctx.drawImage(this.pindanciImage, this.studyButtons.pindanci.x, this.studyButtons.pindanci.y);
+        }
+        if (this.studyButtons.dancipipei.visible && this.dancipipeiImage) {
+            this.ctx.drawImage(this.dancipipeiImage, this.studyButtons.dancipipei.x, this.studyButtons.dancipipei.y);
+        }
+        
+        // 如果图片未加载，显示备用按钮
+        if (this.studyButtons.beidanci.visible && !this.beidanciImage) {
+            this.renderFallbackButton(this.studyButtons.beidanci, '背单词');
+        }
+        if (this.studyButtons.pindanci.visible && !this.pindanciImage) {
+            this.renderFallbackButton(this.studyButtons.pindanci, '拼单词');
+        }
+        if (this.studyButtons.dancipipei.visible && !this.dancipipeiImage) {
+            this.renderFallbackButton(this.studyButtons.dancipipei, '单词匹配');
+        }
+    }
+    
+    // 渲染模式选择备用按钮（当图片未加载时使用）
+    renderFallbackModeButton(button, text) {
         // 绘制按钮背景
         this.ctx.fillStyle = 'rgba(0, 102, 204, 0.8)';
         this.ctx.fillRect(button.x, button.y, button.width, button.height);
@@ -526,11 +866,57 @@ class DialogManager {
         this.ctx.textAlign = 'left';
     }
     
+    // 隐藏所有按钮
+    hideAllButtons() {
+        // 隐藏时间选择按钮
+        this.timeButtons.one.visible = false;
+        this.timeButtons.two.visible = false;
+        this.timeButtons.three.visible = false;
+        
+        // 隐藏模式选择按钮
+        this.modeButtons.amusement.visible = false;
+        this.modeButtons.study.visible = false;
+        
+        // 隐藏学习选择按钮
+        this.studyButtons.beidanci.visible = false;
+        this.studyButtons.pindanci.visible = false;
+        this.studyButtons.dancipipei.visible = false;
+        
+        console.log('所有按钮已隐藏');
+    }
+    
+    // 显示模式选择按钮
+    showModeButtons() {
+        this.hideAllButtons(); // 先隐藏所有按钮
+        this.modeButtons.amusement.visible = true;
+        this.modeButtons.study.visible = true;
+        console.log('显示模式选择按钮');
+    }
+    
+    // 显示时间选择按钮
+    showTimeButtons() {
+        this.hideAllButtons(); // 先隐藏所有按钮
+        this.timeButtons.one.visible = true;
+        this.timeButtons.two.visible = true;
+        this.timeButtons.three.visible = true;
+        console.log('显示时间选择按钮');
+    }
+    
+    // 显示学习选择按钮
+    showStudyButtons() {
+        this.hideAllButtons(); // 先隐藏所有按钮
+        this.studyButtons.beidanci.visible = true;
+        this.studyButtons.pindanci.visible = true;
+        this.studyButtons.dancipipei.visible = true;
+        console.log('显示学习选择按钮');
+    }
+    
     // 处理键盘按键事件
     handleKeyPress() {
         if (this.dialogState === 'waiting_start') {
-            this.dialogState = 'waiting_choice';
-            this.showButtons();
+            // 欢迎对话结束后，进入模式选择
+            this.dialogState = 'waiting_mode_choice';
+            this.showModeButtons();
             return true;
         }
         return false;
@@ -540,44 +926,109 @@ class DialogManager {
     handleClick(x, y) {
         // 如果在等待开始状态，点击屏幕任意位置都可以开始
         if (this.dialogState === 'waiting_start') {
-            this.dialogState = 'waiting_choice';
-            this.showButtons();
+            this.dialogState = 'waiting_mode_choice';
+            this.showModeButtons();
             return true;
         }
         
-        if (this.dialogState !== 'waiting_choice') return false;
+        // 模式选择状态
+        if (this.dialogState === 'waiting_mode_choice') {
+            if (this.isModeButtonClicked(this.modeButtons.amusement, x, y)) {
+                this.handleModeButtonClick('amusement');
+                return true;
+            } else if (this.isModeButtonClicked(this.modeButtons.study, x, y)) {
+                this.handleModeButtonClick('study');
+                return true;
+            }
+        }
         
-        // 检查按钮点击
-        if (this.isButtonClicked(this.buttons.one, x, y)) {
-            this.handleButtonClick(1);
-            return true;
-        } else if (this.isButtonClicked(this.buttons.two, x, y)) {
-            this.handleButtonClick(2);
-            return true;
-        } else if (this.isButtonClicked(this.buttons.three, x, y)) {
-            this.handleButtonClick(3);
-            return true;
+        // 时间选择状态
+        if (this.dialogState === 'waiting_time_choice') {
+            if (this.isTimeButtonClicked(this.timeButtons.one, x, y)) {
+                this.handleTimeButtonClick(1);
+                return true;
+            } else if (this.isTimeButtonClicked(this.timeButtons.two, x, y)) {
+                this.handleTimeButtonClick(2);
+                return true;
+            } else if (this.isTimeButtonClicked(this.timeButtons.three, x, y)) {
+                this.handleTimeButtonClick(3);
+                return true;
+            }
+        }
+        
+        // 学习选择状态
+        if (this.dialogState === 'waiting_study_choice') {
+            if (this.isStudyButtonClicked(this.studyButtons.beidanci, x, y)) {
+                this.handleStudyButtonClick('beidanci');
+                return true;
+            } else if (this.isStudyButtonClicked(this.studyButtons.pindanci, x, y)) {
+                this.handleStudyButtonClick('pindanci');
+                return true;
+            } else if (this.isStudyButtonClicked(this.studyButtons.dancipipei, x, y)) {
+                this.handleStudyButtonClick('dancipipei');
+                return true;
+            }
+        }
+        
+        // 原有的选择逻辑
+        if (this.dialogState === 'waiting_choice') {
+            if (this.isTimeButtonClicked(this.timeButtons.one, x, y)) {
+                this.handleButtonClick(1);
+                return true;
+            } else if (this.isTimeButtonClicked(this.timeButtons.two, x, y)) {
+                this.handleButtonClick(2);
+                return true;
+            } else if (this.isTimeButtonClicked(this.timeButtons.three, x, y)) {
+                this.handleButtonClick(3);
+                return true;
+            }
         }
         
         return false;
     }
     
-    // 检查按钮是否被点击
-    isButtonClicked(button, x, y) {
+    // 检查模式按钮是否被点击
+    isModeButtonClicked(button, x, y) {
         if (!button.visible) return false;
         
-        // 如果有图片，使用图片的实际尺寸
+        // 使用等高的缩放计算
         let buttonWidth = button.width;
         let buttonHeight = button.height;
         
-        // 优先使用图片的实际尺寸
-        if (button === this.buttons.one && this.oneImage) {
+        if (button === this.modeButtons.amusement && this.amusementImage) {
+            if (this.studyImage) {
+                const targetHeight = this.studyImage.height / 6;
+                const amusementScale = this.amusementImage.height / targetHeight;
+                buttonWidth = this.amusementImage.width / amusementScale;
+                buttonHeight = targetHeight;
+            } else {
+                buttonWidth = this.amusementImage.width / 3;
+                buttonHeight = this.amusementImage.height / 3;
+            }
+        } else if (button === this.modeButtons.study && this.studyImage) {
+            buttonWidth = this.studyImage.width / 6;
+            buttonHeight = this.studyImage.height / 6;
+        }
+        
+        return x >= button.x && x <= button.x + buttonWidth &&
+               y >= button.y && y <= button.y + buttonHeight;
+    }
+    
+    // 检查时间按钮是否被点击
+    isTimeButtonClicked(button, x, y) {
+        if (!button.visible) return false;
+        
+        // 使用图片的实际尺寸
+        let buttonWidth = button.width;
+        let buttonHeight = button.height;
+        
+        if (button === this.timeButtons.one && this.oneImage) {
             buttonWidth = this.oneImage.width;
             buttonHeight = this.oneImage.height;
-        } else if (button === this.buttons.two && this.twoImage) {
+        } else if (button === this.timeButtons.two && this.twoImage) {
             buttonWidth = this.twoImage.width;
             buttonHeight = this.twoImage.height;
-        } else if (button === this.buttons.three && this.threeImage) {
+        } else if (button === this.timeButtons.three && this.threeImage) {
             buttonWidth = this.threeImage.width;
             buttonHeight = this.threeImage.height;
         }
@@ -586,9 +1037,45 @@ class DialogManager {
                y >= button.y && y <= button.y + buttonHeight;
     }
     
+    // 处理模式按钮点击
+    handleModeButtonClick(mode) {
+        console.log(`选择游戏模式: ${mode}`);
+        this.currentMode = mode;
+        this.hideAllButtons();
+        
+        // 调用模式选择回调
+        if (this.onModeChoice) {
+            this.onModeChoice(mode);
+        }
+    }
+    
+    // 处理时间按钮点击
+    handleTimeButtonClick(timeOption) {
+        console.log(`选择游戏时间: ${timeOption}分钟`);
+        this.hideAllButtons();
+        this.dialogState = 'hidden'; // 直接隐藏，不再播放滑出动画
+        
+        // 调用时间选择回调
+        if (this.onTimeChoice) {
+            this.onTimeChoice(timeOption);
+        }
+    }
+    
+    // 处理学习按钮点击
+    handleStudyButtonClick(studyOption) {
+        console.log(`选择学习内容: ${studyOption}`);
+        this.hideAllButtons();
+        this.dialogState = 'hidden'; // 直接隐藏，不再播放滑出动画
+        
+        // 调用学习选择回调
+        if (this.onStudyChoice) {
+            this.onStudyChoice(studyOption);
+        }
+    }
+    
     // 处理按钮点击
     handleButtonClick(buttonNumber) {
-        this.hideButtons();
+        this.hideAllButtons();
         this.dialogState = 'sliding_out';
         
         // 根据当前对话类型调用相应回调
@@ -619,7 +1106,30 @@ class DialogManager {
     // 强制隐藏对话
     hide() {
         this.dialogState = 'hidden';
-        this.hideButtons();
+        this.hideAllButtons();
+    }
+    
+    // 检查学习按钮是否被点击
+    isStudyButtonClicked(button, x, y) {
+        if (!button.visible) return false;
+        
+        // 使用图片的实际尺寸
+        let buttonWidth = button.width;
+        let buttonHeight = button.height;
+        
+        if (button === this.studyButtons.beidanci && this.beidanciImage) {
+            buttonWidth = this.beidanciImage.width;
+            buttonHeight = this.beidanciImage.height;
+        } else if (button === this.studyButtons.pindanci && this.pindanciImage) {
+            buttonWidth = this.pindanciImage.width;
+            buttonHeight = this.pindanciImage.height;
+        } else if (button === this.studyButtons.dancipipei && this.dancipipeiImage) {
+            buttonWidth = this.dancipipeiImage.width;
+            buttonHeight = this.dancipipeiImage.height;
+        }
+        
+        return x >= button.x && x <= button.x + buttonWidth &&
+               y >= button.y && y <= button.y + buttonHeight;
     }
 }this.messageOffsetX = -250; // 负数=左侧，正数=右侧
 this.messageOffsetY = -100; // 负数=上方，正数=下方

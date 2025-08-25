@@ -16,6 +16,7 @@ const GameConfig = {
 const GameState = {
     WELCOME_DIALOG: 'welcome_dialog',
     WAITING_START: 'waiting_start',
+    MODE_SELECTION: 'mode_selection', // 新增：模式选择状态
     MENU: 'menu',
     PLAYING: 'playing',
     PAUSED: 'paused',
@@ -51,6 +52,12 @@ const ResourcePaths = {
     BUTTON_ONE: 'resource/one.png',
     BUTTON_TWO: 'resource/two.png',
     BUTTON_THREE: 'resource/three.png',
+    BUTTON_AMUSEMENT: 'resource/amusement.png', // 新增：娱乐模式按钮
+    BUTTON_STUDY: 'resource/study.png', // 新增：学习模式按钮
+    // 学习模式选项按钮
+    BUTTON_BEIDANCI: 'resource/beidanci.png', // 背单词
+    BUTTON_PINDANCI: 'resource/pindanci.png', // 拼单词
+    BUTTON_DANCIPIPEI: 'resource/dancipipei.png', // 单词匹配
     FISH: {
         1: 'resource/1.png',
         2: 'resource/2.png',
@@ -75,6 +82,9 @@ const DialogConfig = {
     TEXT_SPEED: 80, // 文字显示速度（毫秒）
     SLIDE_SPEED: 400, // 角色滑动速度
     WELCOME_TEXT: '我是袁老板，欢迎来到我的鱼塘，你想玩几分钟',
+    MODE_SELECTION_TEXT: '请选择游戏模式，娱乐模式还是学习模式', // 新增：模式选择文本
+    TIME_SELECTION_TEXT: '请选择游戏时长', // 新增：时间选择文本
+    STUDY_SELECTION_TEXT: '请选择学习内容', // 新增：学习选择文本
     END_TEXT: '时间到了，要再玩一次吗'
 };
 
@@ -86,4 +96,13 @@ const TimeConfig = {
         3: 3  // 3分钟
     },
     WARNING_TIME: 30 // 少于30秒时显示警告
+};
+
+// 学习模式配置
+const StudyConfig = {
+    OPTIONS: {
+        'beidanci': '背单词', // 背单词模式
+        'pindanci': '拼单词', // 拼单词模式
+        'dancipipei': '单词匹配' // 单词匹配模式
+    }
 };

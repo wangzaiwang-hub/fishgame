@@ -7,6 +7,7 @@ class Game {
         this.lastTime = 0;
         this.animationId = null;
         this.currentTimeOption = 1; // 初始化时间选项，默认为1分钟
+        this.currentGameMode = null; // 当前游戏模式：'amusement' 或 'study'
         
         // 设置全屏Canvas
         this.resizeCanvas();
@@ -57,6 +58,10 @@ class Game {
         window.addEventListener('keydown', (event) => {
             // 先检查对话系统是否处理了按键
             if (this.dialogManager && this.dialogManager.handleKeyPress()) {
+                // 如果在欢迎对话状态，按键后进入模式选择
+                if (this.state === GameState.WELCOME_DIALOG) {
+                    this.startModeSelection();
+                }
                 return; // 对话系统处理了按键，不再处理游戏按键
             }
             
@@ -198,6 +203,10 @@ class Game {
                 
                 // 再检查对话系统是否处理了点击
                 if (this.dialogManager && this.dialogManager.handleClick(x, y)) {
+                    // 如果在欢迎对话状态，点击后进入模式选择
+                    if (this.state === GameState.WELCOME_DIALOG) {
+                        this.startModeSelection();
+                    }
                     return; // 对话系统处理了点击，不再处理游戏点击
                 }
                 
@@ -228,7 +237,77 @@ class Game {
 
     // 开始欢迎对话
     startWelcomeDialog() {
-        this.dialogManager.startWelcomeDialog((timeOption) => {
+        this.dialogManager.startWelcomeDialog();
+    }
+    
+    // 开始模式选择
+    startModeSelection() {
+        this.state = GameState.MODE_SELECTION;
+        this.dialogManager.startModeSelectionDialog((mode) => {
+            this.onModeSelected(mode);
+        });
+    }
+    
+    // 处理模式选择
+    onModeSelected(mode) {
+        console.log(`选择了游戏模式: ${mode}`);
+        this.currentGameMode = mode; // 保存选择的模式
+        
+        if (mode === 'study') {
+            // 学习模式：进入学习内容选择
+            this.startStudySelection();
+        } else {
+            // 娱乐模式：进入时间选择阶段
+            this.startTimeSelection();
+        }
+    }
+    
+    // 开始学习选择
+    startStudySelection() {
+        this.state = GameState.MENU;
+        this.dialogManager.startStudySelectionDialog((studyOption) => {
+            this.onStudySelected(studyOption);
+        });
+    }
+    
+    // 处理学习选择
+    onStudySelected(studyOption) {
+        console.log(`选择了学习内容: ${studyOption}`);
+        
+        // TODO: 下一步实现学习游戏逻辑
+        // 目前暂时直接开始游戏（无时间限制）
+        this.currentTimeOption = null; // 学习模式无时间限制
+        
+        // 设置分数管理器的模式（传递学习选项而不是时间）
+        this.scoreManager.setTimeOption(studyOption);
+        
+        // 先完全重置游戏状态
+        this.resetGameState();
+        
+        // 学习模式不设置时间限制
+        // this.timeManager.setGameTime(无需设置)
+        
+        // 隐藏对话管理器
+        if (this.dialogManager) {
+            this.dialogManager.hide();
+        }
+        
+        // 直接开始游戏，不进入菜单状态
+        this.state = GameState.PLAYING;
+        // 学习模式不开始计时
+        // this.timeManager.start();
+        this.updateUI();
+        
+        if (!this.animationId) {
+            this.lastTime = performance.now();
+            this.gameLoop();
+        }
+    }
+    
+    // 开始时间选择
+    startTimeSelection() {
+        this.state = GameState.MENU;
+        this.dialogManager.startTimeSelectionDialog((timeOption) => {
             this.onTimeSelected(timeOption);
         });
     }
@@ -287,43 +366,20 @@ class Game {
     
     // 开始结束对话
     startEndDialog() {
-        this.dialogManager.startEndDialog((replayOption) => {
-            this.onReplaySelected(replayOption);
+        this.dialogManager.startEndDialog((mode) => {
+            this.onEndModeSelected(mode);
         });
     }
     
-    // 处理重玩选择
-    onReplaySelected(replayOption) {
-        console.log(`选择了重玩选项: ${replayOption}`);
-        if (replayOption === 1 || replayOption === 2 || replayOption === 3) {
-            // 更新当前时间选项
-            this.currentTimeOption = replayOption;
-            console.log('重玩时更新currentTimeOption为:', this.currentTimeOption);
-            
-            // 设置分数管理器的时间选项
-            this.scoreManager.setTimeOption(replayOption);
-            
-            // 先完全重置游戏状态
-            this.resetGameState();
-            
-            // 设置新的游戏时间
-            this.timeManager.setGameTime(replayOption);
-            
-            // 直接开始游戏
-            this.state = GameState.PLAYING;
-            this.timeManager.start(); // 开始计时
-            this.updateUI();
-            
-            if (!this.animationId) {
-                this.lastTime = performance.now();
-                this.gameLoop();
-            }
-        } else {
-            // 结束游戏
-            this.state = GameState.GAME_OVER;
-            this.updateUI();
-        }
+    // 处理结束对话中的模式选择
+    onEndModeSelected(mode) {
+        console.log(`结束对话中选择了游戏模式: ${mode}`);
+        this.currentGameMode = mode; // 保存选择的模式
+        
+        // 直接进入时间选择
+        this.startTimeSelection();
     }
+    
     bindEvents() {
         const startBtn = document.getElementById('startBtn');
         const pauseBtn = document.getElementById('pauseBtn');
@@ -526,8 +582,8 @@ class Game {
         // 渲染场景背景
         this.sceneManager.render();
         
-        // 对话系统优先渲染（仅在欢迎对话和结束对话状态下显示）
-        if (this.dialogManager && this.dialogManager.shouldShow(this.state)) {
+        // 对话系统优先渲染（仅在相关状态下显示）
+        if (this.dialogManager && this.shouldShowDialog()) {
             // console.log('渲染对话系统');
             this.dialogManager.render();
         }
@@ -546,7 +602,7 @@ class Game {
         }
         
         // 只在非对话状态下渲染游戏实体
-        if (this.state !== GameState.WELCOME_DIALOG && this.state !== GameState.END_DIALOG && this.state !== GameState.GAME_SETTLEMENT) {
+        if (!this.shouldShowDialog() && this.state !== GameState.GAME_SETTLEMENT) {
             // 渲染实体
             this.entityManager.render(this.ctx);
             
@@ -559,6 +615,14 @@ class Game {
             // 渲染UI
             this.renderUI();
         }
+    }
+    
+    // 判断是否应该显示对话系统
+    shouldShowDialog() {
+        return this.state === GameState.WELCOME_DIALOG || 
+               this.state === GameState.MODE_SELECTION || 
+               this.state === GameState.MENU || 
+               this.state === GameState.END_DIALOG;
     }
 
     // 渲染UI元素

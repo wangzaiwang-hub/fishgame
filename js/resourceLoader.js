@@ -77,6 +77,28 @@ class ResourceLoader {
             this.loadImage('three', ResourcePaths.BUTTON_THREE)
         );
         
+        // 加载模式选择按钮
+        resourcesToLoad.push(
+            this.loadImage('amusement', ResourcePaths.BUTTON_AMUSEMENT)
+        );
+        
+        resourcesToLoad.push(
+            this.loadImage('study', ResourcePaths.BUTTON_STUDY)
+        );
+        
+        // 加载学习模式选项按钮
+        resourcesToLoad.push(
+            this.loadImage('beidanci', ResourcePaths.BUTTON_BEIDANCI)
+        );
+        
+        resourcesToLoad.push(
+            this.loadImage('pindanci', ResourcePaths.BUTTON_PINDANCI)
+        );
+        
+        resourcesToLoad.push(
+            this.loadImage('dancipipei', ResourcePaths.BUTTON_DANCIPIPEI)
+        );
+        
         // 加载所有鱼类图片
         for (let i = 1; i <= 15; i++) {
             resourcesToLoad.push(
