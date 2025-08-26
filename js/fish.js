@@ -1,6 +1,6 @@
 // 鱼类实体类
 class Fish extends Entity {
-    constructor(x, y, type, direction, speed, resources) {
+    constructor(x, y, type, direction, speed, resources, wordData = null) {
         // 假设鱼的大小，实际会根据图片调整
         super(x, y, 60, 40);
         
@@ -17,6 +17,11 @@ class Fish extends Entity {
         this.verticalAmplitude = 20 + Math.random() * 30; // 上下移动幅度
         this.verticalTime = Math.random() * Math.PI * 2; // 随机起始相位
         this.baseY = y; // 基础Y位置
+        
+        // 背单词模式相关属性
+        this.wordData = wordData; // 单词数据 {displayText, isCorrect, word, meaning}
+        this.textColor = '#000000'; // 文字颜色
+        this.textSize = 14; // 文字大小
         
         // 设置鱼的图片
         this.setImage();
@@ -104,6 +109,11 @@ class Fish extends Entity {
         // 所有鱼类图片都不翻转，保持原始朝向
         ctx.drawImage(this.image, this.x, this.y, this.width, this.height);
         
+        // 在鱼身上绘制文字（背单词模式）
+        if (this.wordData && this.wordData.displayText) {
+            this.renderText(ctx);
+        }
+        
         // 调试：绘制边界框（可选）
         if (false) { // 设为true来显示碰撞框
             // 绘制图片边界（红色）
@@ -116,6 +126,66 @@ class Fish extends Entity {
             ctx.strokeRect(bounds.x, bounds.y, bounds.width, bounds.height);
         }
     }
+    
+    // 绘制文字在鱼身上
+    renderText(ctx) {
+        const text = this.wordData.displayText;
+        if (!text) return;
+        
+        // 设置文字样式
+        ctx.save();
+        ctx.font = `${this.textSize}px Arial`;
+        ctx.fillStyle = this.textColor;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        // 添加白色边框使文字更清晰
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        
+        // 计算文字位置（鱼的中心）
+        const centerX = this.x + this.width / 2;
+        const centerY = this.y + this.height / 2;
+        
+        // 处理文字换行（如果文字太长）
+        const maxWidth = this.width - 10; // 留出一些边距
+        const lines = this.wrapText(ctx, text, maxWidth);
+        
+        // 绘制每一行文字
+        const lineHeight = this.textSize + 2;
+        const totalHeight = lines.length * lineHeight;
+        const startY = centerY - totalHeight / 2 + lineHeight / 2;
+        
+        lines.forEach((line, index) => {
+            const y = startY + index * lineHeight;
+            // 先绘制边框，再绘制文字
+            ctx.strokeText(line, centerX, y);
+            ctx.fillText(line, centerX, y);
+        });
+        
+        ctx.restore();
+    }
+    
+    // 文字换行处理
+    wrapText(ctx, text, maxWidth) {
+        const words = text.split(' ');
+        const lines = [];
+        let currentLine = words[0];
+        
+        for (let i = 1; i < words.length; i++) {
+            const word = words[i];
+            const width = ctx.measureText(currentLine + ' ' + word).width;
+            if (width < maxWidth) {
+                currentLine += ' ' + word;
+            } else {
+                lines.push(currentLine);
+                currentLine = word;
+            }
+        }
+        lines.push(currentLine);
+        
+        return lines;
+    }
 
     // 获取分数
     getScore() {
@@ -126,7 +196,12 @@ class Fish extends Entity {
     onCaught() {
         this.destroy();
         // 可以在这里添加被捕获的特效
-        console.log(`捕获了类型${this.type}的鱼，获得${this.score}分！`);
+        if (this.wordData) {
+            const result = this.wordData.isCorrect ? '正确' : '错误';
+            console.log(`捕获了类型${this.type}的鱼（${this.wordData.displayText}），答案${result}！`);
+        } else {
+            console.log(`捕获了类型${this.type}的鱼，获得${this.score}分！`);
+        }
     }
 
     // 检查是否与点击位置碰撞
@@ -139,7 +214,7 @@ class Fish extends Entity {
     }
 
     // 静态方法：创建随机鱼类
-    static createRandomFish(resources, canvasWidth, canvasHeight) {
+    static createRandomFish(resources, canvasWidth, canvasHeight, wordData = null) {
         // 随机选择鱼的类型和方向
         const isRightFish = Math.random() < 0.6; // 60%概率是右游鱼
         
@@ -171,6 +246,6 @@ class Fish extends Entity {
         const maxSpeed = GameConfig.FISH_MAX_SPEED;
         const speed = Math.random() * (maxSpeed - minSpeed) + minSpeed;
         
-        return new Fish(x, y, type, direction, speed, resources);
+        return new Fish(x, y, type, direction, speed, resources, wordData);
     }
 }

@@ -126,7 +126,13 @@ class TimeManager {
     }
     
     // 渲染时间显示
-    renderTimeDisplay(ctx) {
+    renderTimeDisplay(ctx, gameState = null, wordManager = null) {
+        // 在背单词模式下显示当前单词
+        if (gameState === GameState.PLAYING_WORD_MODE && wordManager) {
+            this.renderWordDisplay(ctx, wordManager);
+            return;
+        }
+        
         if (!this.isRunning && this.remainingTime === this.gameTime) {
             return; // 游戏还未开始，不显示时间
         }
@@ -162,6 +168,79 @@ class TimeManager {
         this.renderTimeProgressBar(ctx);
         
         ctx.restore();
+    }
+    
+    // 渲染单词显示（背单词模式）
+    renderWordDisplay(ctx, wordManager) {
+        ctx.save();
+        
+        // 获取当前要显示的文字
+        const displayText = wordManager.getCurrentDisplayText();
+        const progress = wordManager.getProgress();
+        
+        // 设置文字样式
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 28px Arial';
+        ctx.textAlign = 'center';
+        
+        // 添加文字阴影效果
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+        ctx.shadowBlur = 3;
+        ctx.shadowOffsetX = 1;
+        ctx.shadowOffsetY = 1;
+        
+        const x = ctx.canvas.width / 2;
+        const y = 40;
+        
+        // 显示当前单词或意思
+        if (displayText) {
+            ctx.fillText(displayText, x, y);
+        }
+        
+        // 显示进度信息
+        ctx.font = 'bold 18px Arial';
+        const progressText = `进度: ${progress.current}/${progress.target}`;
+        ctx.fillText(progressText, x, y + 35);
+        
+        // 清除阴影效果
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+        
+        // 渲染背单词进度条
+        this.renderWordProgressBar(ctx, progress);
+        
+        ctx.restore();
+    }
+    
+    // 渲染背单词进度条
+    renderWordProgressBar(ctx, progress) {
+        const barWidth = 300;
+        const barHeight = 10;
+        const x = (ctx.canvas.width - barWidth) / 2;
+        const y = 85;
+        
+        // 背景条
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.fillRect(x, y, barWidth, barHeight);
+        
+        // 进度条
+        const progressRatio = progress.current / progress.target;
+        const progressWidth = barWidth * progressRatio;
+        
+        // 根据进度选择颜色
+        let progressColor = '#4CAF50'; // 绿色
+        if (progressRatio > 0.5) progressColor = '#2196F3'; // 蓝色
+        if (progressRatio > 0.8) progressColor = '#FF9800'; // 橙色
+        
+        ctx.fillStyle = progressColor;
+        ctx.fillRect(x, y, progressWidth, barHeight);
+        
+        // 边框
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x, y, barWidth, barHeight);
     }
     
     // 渲染时间进度条

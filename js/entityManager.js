@@ -49,7 +49,7 @@ class EntityManager {
     }
 
     // 生成新鱼类
-    spawnFish() {
+    spawnFish(wordManager = null) {
         if (!this.resources) return;
         
         // 检查是否达到最大鱼类数量
@@ -57,23 +57,41 @@ class EntityManager {
             return;
         }
 
-        const fish = Fish.createRandomFish(
-            this.resources, 
-            GameConfig.CANVAS_WIDTH, 
-            GameConfig.CANVAS_HEIGHT
-        );
+        let fish;
+        
+        if (wordManager && wordManager.words.length > 0) {
+            // 背单词模式：所有鱼都显示相同内容
+            const wordData = wordManager.getRandomWordForFish();
+            
+            fish = Fish.createRandomFish(
+                this.resources, 
+                GameConfig.CANVAS_WIDTH, 
+                GameConfig.CANVAS_HEIGHT,
+                wordData
+            );
+            
+            console.log(`生成背单词鱼类：类型${fish.type}, 方向${fish.direction > 0 ? '右' : '左'}, 内容: "${wordData?.displayText}", 是否正确: ${wordData?.isCorrect}`);
+        } else {
+            // 普通模式：生成没有单词数据的鱼类
+            fish = Fish.createRandomFish(
+                this.resources, 
+                GameConfig.CANVAS_WIDTH, 
+                GameConfig.CANVAS_HEIGHT
+            );
+            
+            console.log(`生成普通鱼类：类型${fish.type}, 方向${fish.direction > 0 ? '右' : '左'}`);
+        }
         
         this.addEntity(fish);
-        console.log(`生成了新鱼类，类型: ${fish.type}, 方向: ${fish.direction > 0 ? '右' : '左'}`);
     }
 
     // 更新所有实体
-    update(deltaTime) {
+    update(deltaTime, wordManager = null) {
         const currentTime = Date.now();
         
         // 检查是否需要生成新鱼类
         if (currentTime - this.lastFishSpawn > GameConfig.FISH_SPAWN_RATE) {
-            this.spawnFish();
+            this.spawnFish(wordManager);
             this.lastFishSpawn = currentTime;
         }
 

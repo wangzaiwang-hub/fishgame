@@ -87,21 +87,42 @@ class SettlementManager {
     }
     
     // 开始结算动画
-    startSettlement(timeOption, scoreManager) {
+    startSettlement(timeOption, scoreManager, gameMode = 'amusement', wordManager = null) {
         console.log('开始游戏结算动画，接收的timeOption:', timeOption);
+        console.log('游戏模式:', gameMode);
         console.log('scoreManager状态:', {
             score: scoreManager.getScore(),
             highScore: scoreManager.getHighScoreForTime(timeOption), // 使用指定时间的最高分
             fishCaught: scoreManager.getFishCaught()
         });
         
-        // 保存结算数据
-        this.settlementData = {
-            playTime: timeOption,
-            currentScore: scoreManager.getScore(),
-            highScore: scoreManager.getHighScoreForTime(timeOption), // 使用指定时间的最高分
-            fishCaught: scoreManager.getFishCaught()
-        };
+        // 保存游戏模式和结算数据
+        this.gameMode = gameMode;
+        this.wordManager = wordManager;
+        
+        if (gameMode === 'study' && wordManager) {
+            // 学习模式：保存单词学习数据
+            const currentWord = wordManager.getCurrentWord();
+            this.settlementData = {
+                playTime: timeOption,
+                currentScore: scoreManager.getScore(),
+                highScore: scoreManager.getHighScoreForTime(timeOption),
+                fishCaught: scoreManager.getFishCaught(),
+                studyMode: gameMode,
+                learnedWord: currentWord ? currentWord.word : '单词',
+                wordMeaning: currentWord ? currentWord.meaning : '意思',
+                progress: wordManager.getProgress()
+            };
+        } else {
+            // 娱乐模式：保存普通数据
+            this.settlementData = {
+                playTime: timeOption,
+                currentScore: scoreManager.getScore(),
+                highScore: scoreManager.getHighScoreForTime(timeOption), // 使用指定时间的最高分
+                fishCaught: scoreManager.getFishCaught(),
+                studyMode: 'amusement'
+            };
+        }
         
         console.log('保存的结算数据:', this.settlementData);
         
@@ -307,22 +328,38 @@ class SettlementManager {
         const fontSize = baseFontSize * fontSizeMultiplier;
         this.ctx.font = `${fontWeight} ${Math.round(fontSize)}px Arial`;
         
-        // 游戏时间 - 使用单独位置参数
-        const timeText = this.getTimeText(this.settlementData.playTime);
-        const line1Y = this.boardY + boardHeight * line1Position;
-        this.ctx.fillText(timeText, boardCenterX, line1Y);
-        
-        // 当局分数 - 使用单独位置参数
-        const line2Y = this.boardY + boardHeight * line2Position;
-        this.ctx.fillText(`本局分数: ${this.settlementData.currentScore}`, boardCenterX, line2Y);
-        
-        // 最高分数 - 使用单独位置参数
-        const line3Y = this.boardY + boardHeight * line3Position;
-        this.ctx.fillText(`最高分数: ${this.settlementData.highScore}`, boardCenterX, line3Y);
-        
-        // 捕获数量 - 使用单独位置参数
-        const line4Y = this.boardY + boardHeight * line4Position;
-        this.ctx.fillText(`捕获: ${this.settlementData.fishCaught} 条`, boardCenterX, line4Y);
+        if (this.settlementData.studyMode === 'study') {
+            // 学习模式：显示不同内容
+            const line1Y = this.boardY + boardHeight * line1Position;
+            this.ctx.fillText('背单词', boardCenterX, line1Y);
+            
+            const line2Y = this.boardY + boardHeight * line2Position;
+            this.ctx.fillText(`单词: ${this.settlementData.learnedWord}`, boardCenterX, line2Y);
+            
+            const line3Y = this.boardY + boardHeight * line3Position;
+            this.ctx.fillText(`意思: ${this.settlementData.wordMeaning}`, boardCenterX, line3Y);
+            
+            const line4Y = this.boardY + boardHeight * line4Position;
+            this.ctx.fillText(`恭喜你学会了【${this.settlementData.learnedWord}】`, boardCenterX, line4Y);
+        } else {
+            // 娱乐模式：显示分数等信息
+            // 游戏时间 - 使用单独位置参数
+            const timeText = this.getTimeText(this.settlementData.playTime);
+            const line1Y = this.boardY + boardHeight * line1Position;
+            this.ctx.fillText(timeText, boardCenterX, line1Y);
+            
+            // 当局分数 - 使用单独位置参数
+            const line2Y = this.boardY + boardHeight * line2Position;
+            this.ctx.fillText(`本局分数: ${this.settlementData.currentScore}`, boardCenterX, line2Y);
+            
+            // 最高分数 - 使用单独位置参数
+            const line3Y = this.boardY + boardHeight * line3Position;
+            this.ctx.fillText(`最高分数: ${this.settlementData.highScore}`, boardCenterX, line3Y);
+            
+            // 捕获数量 - 使用单独位置参数
+            const line4Y = this.boardY + boardHeight * line4Position;
+            this.ctx.fillText(`捕获: ${this.settlementData.fishCaught} 条`, boardCenterX, line4Y);
+        }
         
         // 清除阴影效果
         this.ctx.shadowColor = 'transparent';

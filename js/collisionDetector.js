@@ -66,12 +66,22 @@ class CollisionDetector {
         // 让鱼钩开始返回
         hook.forceReturn();
         
-        // 触发碰撞回调
-        this.triggerCollisionCallbacks('hook-fish', {
+        // 准备碰撞数据
+        let collisionData = {
             hook: hook,
             fish: fish,
             score: fish.getScore()
-        });
+        };
+        
+        // 如果是背单词模式，添加单词相关数据
+        if (fish.wordData) {
+            collisionData.wordData = fish.wordData;
+            collisionData.isCorrect = fish.wordData.isCorrect;
+            console.log(`背单词模式碰撞：答案${fish.wordData.isCorrect ? '正确' : '错误'}`);
+        }
+        
+        // 触发碰撞回调
+        this.triggerCollisionCallbacks('hook-fish', collisionData);
     }
 
     // 添加碰撞回调

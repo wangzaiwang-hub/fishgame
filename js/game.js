@@ -21,7 +21,10 @@ class Game {
         this.inputHandler = new InputHandler(this.canvas);
         this.dialogManager = null; // 将在初始化时创建
         this.timeManager = new TimeManager();
+        this.wordManager = new WordManager(); // 初始化单词管理器
+        this.wordWallManager = null; // 单词墙管理器（初始化时创建）
         this.player = null; // 玩家实体
+        this.currentStudyMode = null; // 当前学习模式：'beidanci', 'pindanci', 'dancipipei'
         
         // 绑定事件
         this.bindEvents();
@@ -65,14 +68,14 @@ class Game {
                 return; // 对话系统处理了按键，不再处理游戏按键
             }
             
-            if (this.player && this.state === GameState.PLAYING) {
+            if (this.player && (this.state === GameState.PLAYING || this.state === GameState.PLAYING_WORD_MODE)) {
                 this.player.setKey(event.key, true);
             }
             
             // 空格键投放鱼钩
             if (event.key === ' ' || event.key === 'Spacebar') {
                 event.preventDefault();
-                if (this.state === GameState.PLAYING && this.player) {
+                if ((this.state === GameState.PLAYING || this.state === GameState.PLAYING_WORD_MODE) && this.player) {
                     const hookPos = this.player.getHookStartPosition();
                     this.castHookVertical(hookPos.x, GameConfig.CANVAS_HEIGHT - 50);
                 }
@@ -80,7 +83,7 @@ class Game {
         });
 
         window.addEventListener('keyup', (event) => {
-            if (this.player && this.state === GameState.PLAYING) {
+            if (this.player && (this.state === GameState.PLAYING || this.state === GameState.PLAYING_WORD_MODE)) {
                 this.player.setKey(event.key, false);
             }
         });
@@ -170,6 +173,9 @@ class Game {
             // 创建对话管理器
             this.dialogManager = new DialogManager(this.ctx, this.resourceLoader.resources);
             
+            // 创建单词墙管理器
+            this.wordWallManager = new WordWallManager(this.ctx);
+            
             // 创建结算管理器
             this.settlementManager = new SettlementManager(this.ctx, this.resourceLoader.resources);
             
@@ -201,6 +207,17 @@ class Game {
                     }
                 }
                 
+                // 检查单词墙是否处理了点击
+                if (this.wordWallManager && this.state === GameState.WORD_WALL) {
+                    console.log(`游戏状态: ${this.state}, 点击位置: (${x}, ${y})`);
+                    const result = this.wordWallManager.handleClick(x, y);
+                    if (result) {
+                        console.log('单词墙处理结果:', result);
+                        this.handleWordWallClick(result);
+                        return;
+                    }
+                }
+                
                 // 再检查对话系统是否处理了点击
                 if (this.dialogManager && this.dialogManager.handleClick(x, y)) {
                     // 如果在欢迎对话状态，点击后进入模式选择
@@ -210,7 +227,7 @@ class Game {
                     return; // 对话系统处理了点击，不再处理游戏点击
                 }
                 
-                if (this.state === GameState.PLAYING) {
+                if (this.state === GameState.PLAYING || this.state === GameState.PLAYING_WORD_MODE) {
                     this.castHookVertical(x, y);
                 }
             });
@@ -218,7 +235,13 @@ class Game {
             // 设置碰撞检测回调
             this.collisionDetector.addCollisionCallback((type, data) => {
                 if (type === 'hook-fish') {
-                    this.scoreManager.addScore(data.score, data.fish.type);
+                    if (this.state === GameState.PLAYING_WORD_MODE && data.wordData) {
+                        // 背单词模式：处理单词答案
+                        this.handleWordAnswer(data);
+                    } else {
+                        // 普通模式：正常计分
+                        this.scoreManager.addScore(data.score, data.fish.type);
+                    }
                 }
             });
             
@@ -274,34 +297,231 @@ class Game {
     onStudySelected(studyOption) {
         console.log(`选择了学习内容: ${studyOption}`);
         
-        // TODO: 下一步实现学习游戏逻辑
-        // 目前暂时直接开始游戏（无时间限制）
-        this.currentTimeOption = null; // 学习模式无时间限制
+        this.currentStudyMode = studyOption;
         
-        // 设置分数管理器的模式（传递学习选项而不是时间）
-        this.scoreManager.setTimeOption(studyOption);
-        
-        // 先完全重置游戏状态
-        this.resetGameState();
-        
-        // 学习模式不设置时间限制
-        // this.timeManager.setGameTime(无需设置)
+        if (studyOption === 'beidanci') {
+            // 背单词模式：显示单词墙
+            this.startWordWallSelection();
+        } else {
+            // 其他模式暂时直接开始游戏
+            this.currentTimeOption = null; // 学习模式无时间限制
+            
+            // 设置分数管理器的模式（传递学习选项而不是时间）
+            this.scoreManager.setTimeOption(studyOption);
+            
+            // 先完全重置游戏状态
+            this.resetGameState();
+            
+            // 学习模式不设置时间限制
+            // this.timeManager.setGameTime(无需设置)
+            
+            // 隐藏对话管理器
+            if (this.dialogManager) {
+                this.dialogManager.hide();
+            }
+            
+            // 直接开始游戏，不进入菜单状态
+            this.state = GameState.PLAYING;
+            // 学习模式不开始计时
+            // this.timeManager.start();
+            this.updateUI();
+            
+            if (!this.animationId) {
+                this.lastTime = performance.now();
+                this.gameLoop();
+            }
+        }
+    }
+    
+    // 开始单词墙选择
+    async startWordWallSelection() {
+        this.state = GameState.WORD_WALL;
         
         // 隐藏对话管理器
         if (this.dialogManager) {
             this.dialogManager.hide();
         }
         
-        // 直接开始游戏，不进入菜单状态
-        this.state = GameState.PLAYING;
-        // 学习模式不开始计时
-        // this.timeManager.start();
+        // 加载默认单词（四级）
+        await this.wordManager.loadWords('cet4');
+        
+        // 显示单词墙界面，等待用户选择
+        this.showWordWallUI();
+    }
+    
+    // 显示单词墙界面
+    showWordWallUI() {
+        console.log('显示单词墙界面');
+        
+        // 获取单词数据和分页信息
+        const wordWallData = this.wordManager.getWordWallData();
+        const completedWords = this.wordManager.completedWords;
+        const selectedWordIndex = this.wordManager.selectedWordIndex;
+        const pageInfo = this.wordManager.getPageInfo();
+        
+        console.log(`显示单词墙: 第${pageInfo.currentPage}页, 单词数量: ${wordWallData.length}`);
+        
+        // 显示单词墙
+        this.wordWallManager.show(wordWallData, completedWords, selectedWordIndex, pageInfo);
+    }
+    
+    // 处理单词墙点击
+    handleWordWallClick(result) {
+        console.log('单词墙点击:', result);
+        
+        switch (result.type) {
+            case 'level':
+                // 切换等级
+                this.switchWordLevel(result.level);
+                break;
+                
+            case 'word':
+                // 选中单词，设置为当前学习的单词
+                console.log(`选中单词相对索引: ${result.wordIndex}`);
+                this.wordManager.setSelectedWord(result.wordIndex);
+                // 更新单词墙显示
+                this.updateWordWallDisplay();
+                break;
+                
+            case 'page':
+                // 分页操作
+                if (result.direction === 'next') {
+                    console.log('点击下一页');
+                    if (this.wordManager.goToNextPage()) {
+                        this.updateWordWallDisplay();
+                    }
+                } else if (result.direction === 'prev') {
+                    console.log('点击上一页');
+                    if (this.wordManager.goToPreviousPage()) {
+                        this.updateWordWallDisplay();
+                    }
+                }
+                break;
+                
+            case 'startGame':
+                // 开始游戏
+                this.startWordGameFromWall();
+                break;
+                
+            default:
+                console.log('未知的点击类型:', result.type);
+        }
+    }
+    
+    // 切换单词等级
+    async switchWordLevel(level) {
+        console.log(`切换到${level === 'cet4' ? '四级' : '六级'}单词`);
+        
+        // 更新单词墙管理器的等级
+        this.wordWallManager.switchLevel(level);
+        
+        // 重新加载单词数据
+        await this.wordManager.loadWords(level);
+        
+        // 重新显示单词墙
+        this.showWordWallUI();
+    }
+    
+    // 更新单词墙显示
+    updateWordWallDisplay() {
+        if (this.wordWallManager && this.state === GameState.WORD_WALL) {
+            const wordWallData = this.wordManager.getWordWallData();
+            const completedWords = this.wordManager.completedWords;
+            const selectedWordIndex = this.wordManager.selectedWordIndex;
+            const pageInfo = this.wordManager.getPageInfo();
+            
+            console.log(`更新单词墙显示: 第${pageInfo.currentPage}页, 选中单词索引: ${selectedWordIndex}`);
+            
+            // 更新单词墙显示
+            this.wordWallManager.show(wordWallData, completedWords, selectedWordIndex, pageInfo);
+        }
+    }
+    
+    // 从单词墙开始游戏
+    startWordGameFromWall() {
+        console.log('从单词墙开始背单词游戏');
+        
+        // 隐藏单词墙
+        this.wordWallManager.hide();
+        
+        // 开始背单词游戏
+        this.startWordGame();
+    }
+    
+    // 开始背单词游戏
+    startWordGame() {
+        console.log('开始背单词游戏');
+        
+        // 重置游戏状态
+        this.resetGameState();
+        
+        // 重置单词管理器
+        this.wordManager.reset();
+        
+        // 设置阶段切换回调（清除所有鱼类）
+        this.wordManager.setStageSwitchCallback(() => {
+            this.clearAllFish();
+        });
+        
+        // 设置页面变化回调（更新单词墙显示）
+        this.wordManager.setPageChangeCallback(() => {
+            // 在游戏进行中不更新单词墙，只在单词墙状态下才更新
+            if (this.state === GameState.WORD_WALL) {
+                this.updateWordWallDisplay();
+            }
+        });
+        
+        // 设置为背单词游戏状态
+        this.state = GameState.PLAYING_WORD_MODE;
+        
         this.updateUI();
         
         if (!this.animationId) {
             this.lastTime = performance.now();
             this.gameLoop();
         }
+    }
+    
+    // 清除所有鱼类
+    clearAllFish() {
+        console.log('清除所有鱼类');
+        const fishes = this.entityManager.getFishes();
+        fishes.forEach(fish => {
+            fish.destroy();
+        });
+    }
+    
+    // 处理背单词模式的答案
+    handleWordAnswer(data) {
+        const isCorrect = data.wordData.isCorrect;
+        const fishType = data.fish.type;
+        
+        if (isCorrect) {
+            // 正确答案：给分并更新进度
+            const result = this.wordManager.onFishCaught(data.wordData);
+            this.scoreManager.addScore(data.score, fishType);
+            
+            // 检查游戏是否完成
+            if (this.wordManager.isGameComplete()) {
+                console.log('背单词游戏完成！');
+                this.onWordGameComplete();
+            }
+        } else {
+            // 错误答案：不给分，不更新进度
+            console.log('错误答案，不给分');
+            // 可以在这里添加错误反馈效果
+        }
+    }
+    
+    // 背单词游戏完成
+    onWordGameComplete() {
+        console.log('背单词游戏完成！进入结算界面');
+        
+        // 进入结算状态
+        this.state = GameState.GAME_SETTLEMENT;
+        
+        // 开始学习模式的结算动画
+        this.settlementManager.startSettlement(null, this.scoreManager, 'study', this.wordManager);
     }
     
     // 开始时间选择
@@ -554,7 +774,7 @@ class Game {
         this.timeManager.update(deltaTime);
 
         // 更新游戏状态
-        if (this.state === GameState.PLAYING) {
+        if (this.state === GameState.PLAYING || this.state === GameState.PLAYING_WORD_MODE) {
             this.update(deltaTime);
         }
 
@@ -567,8 +787,12 @@ class Game {
 
     // 更新游戏状态
     update(deltaTime) {
-        // 更新实体管理器
-        this.entityManager.update(deltaTime);
+        // 在背单词模式下传入wordManager
+        if (this.state === GameState.PLAYING_WORD_MODE) {
+            this.entityManager.update(deltaTime, this.wordManager);
+        } else {
+            this.entityManager.update(deltaTime);
+        }
         
         // 检测碰撞
         this.collisionDetector.checkCollisions(this.entityManager);
@@ -582,6 +806,12 @@ class Game {
         // 渲染场景背景
         this.sceneManager.render();
         
+        // 单词墙优先渲染（在WORD_WALL状态下）
+        if (this.wordWallManager && this.state === GameState.WORD_WALL) {
+            this.wordWallManager.render();
+            return; // 单词墙状态下只渲染单词墙
+        }
+        
         // 对话系统优先渲染（仅在相关状态下显示）
         if (this.dialogManager && this.shouldShowDialog()) {
             // console.log('渲染对话系统');
@@ -593,7 +823,7 @@ class Game {
             // 结算状态下也渲染游戏实体作为背景
             this.entityManager.render(this.ctx);
             this.scoreManager.renderScoreAnimations(this.ctx);
-            this.timeManager.renderTimeDisplay(this.ctx);
+            this.timeManager.renderTimeDisplay(this.ctx, this.state, this.wordManager);
             this.renderUI();
             
             // 然后渲染结算画面
@@ -610,7 +840,7 @@ class Game {
             this.scoreManager.renderScoreAnimations(this.ctx);
             
             // 渲染时间显示
-            this.timeManager.renderTimeDisplay(this.ctx);
+            this.timeManager.renderTimeDisplay(this.ctx, this.state, this.wordManager);
             
             // 渲染UI
             this.renderUI();
@@ -627,7 +857,7 @@ class Game {
 
     // 渲染UI元素
     renderUI() {
-        // 固定在左上角的分数统计信息
+        // 固定在左上角的统计信息
         const leftMargin = 20;  // 左边距
         const topMargin = 30;   // 上边距
         const lineHeight = 25;  // 行高
@@ -643,15 +873,26 @@ class Game {
         this.ctx.shadowOffsetX = 1;
         this.ctx.shadowOffsetY = 1;
         
-        // 渲染分数信息（固定在左上角）
-        this.ctx.fillText(`分数: ${this.scoreManager.getScore()}`, leftMargin, topMargin);
-        
-        // 渲染最高分
-        this.ctx.font = 'bold 18px Arial';
-        this.ctx.fillText(`最高分: ${this.scoreManager.getHighScore()}`, leftMargin, topMargin + lineHeight);
-        
-        // 渲染捕获数量
-        this.ctx.fillText(`捕获: ${this.scoreManager.getFishCaught()} 条`, leftMargin, topMargin + lineHeight * 2);
+        if (this.state === GameState.PLAYING_WORD_MODE) {
+            // 背单词模式：只显示学习相关信息
+            this.ctx.fillText('背单词', leftMargin, topMargin);
+            
+            const currentWord = this.wordManager.getCurrentWord();
+            if (currentWord) {
+                this.ctx.fillText(`单词: ${currentWord.word}`, leftMargin, topMargin + lineHeight);
+                this.ctx.fillText(`意思: ${currentWord.meaning}`, leftMargin, topMargin + lineHeight * 2);
+            }
+        } else {
+            // 娱乐模式：显示分数信息
+            this.ctx.fillText(`分数: ${this.scoreManager.getScore()}`, leftMargin, topMargin);
+            
+            // 渲染最高分
+            this.ctx.font = 'bold 18px Arial';
+            this.ctx.fillText(`最高分: ${this.scoreManager.getHighScore()}`, leftMargin, topMargin + lineHeight);
+            
+            // 渲染捕获数量
+            this.ctx.fillText(`捕获: ${this.scoreManager.getFishCaught()} 条`, leftMargin, topMargin + lineHeight * 2);
+        }
         
         // 清除阴影效果，避免影响其他渲染
         this.ctx.shadowColor = 'transparent';

@@ -16,9 +16,12 @@ const GameConfig = {
 const GameState = {
     WELCOME_DIALOG: 'welcome_dialog',
     WAITING_START: 'waiting_start',
-    MODE_SELECTION: 'mode_selection', // 新增：模式选择状态
+    MODE_SELECTION: 'mode_selection', // 模式选择状态
+    STUDY_SELECTION: 'study_selection', // 学习内容选择状态
+    WORD_WALL: 'word_wall', // 单词墙显示状态
     MENU: 'menu',
     PLAYING: 'playing',
+    PLAYING_WORD_MODE: 'playing_word_mode', // 背单词游戏状态
     PAUSED: 'paused',
     TIME_UP: 'time_up',
     GAME_SETTLEMENT: 'game_settlement',
@@ -105,4 +108,21 @@ const StudyConfig = {
         'pindanci': '拼单词', // 拼单词模式
         'dancipipei': '单词匹配' // 单词匹配模式
     }
+};
+
+// 单词墙配置
+const WordWallConfig = {
+    WORDS_PER_GROUP: 10, // 每组单词数量
+    WORDS_PER_ROW: 5, // 每行显示的单词数量
+    WORD_BUTTON_WIDTH: 140, // 单词按钮宽度（从120增加到140）
+    WORD_BUTTON_HEIGHT: 45, // 单词按钮高度（从40增加到45）
+    WORD_SPACING_X: 30, // 单词按钮水平间距（从20增加到30）
+    WORD_SPACING_Y: 25, // 单词按钮垂直间距（从15增加到25）
+    LEVEL_BUTTON_WIDTH: 90, // 等级切换按钮宽度（从80增加到90）
+    LEVEL_BUTTON_HEIGHT: 40, // 等级切换按钮高度（从35增加到40）
+    COMPLETED_COLOR: '#4CAF50', // 已完成单词颜色（绿色）
+    INCOMPLETE_COLOR: '#9E9E9E', // 未完成单词颜色（灰色）
+    CURRENT_COLOR: '#2196F3', // 当前单词颜色（蓝色）
+    TEXT_COLOR: '#FFFFFF', // 文字颜色
+    BACKGROUND_COLOR: 'rgba(0, 0, 0, 0.8)' // 背景颜色
 };
