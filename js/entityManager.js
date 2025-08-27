@@ -60,17 +60,32 @@ class EntityManager {
         let fish;
         
         if (wordManager && wordManager.words.length > 0) {
-            // 背单词模式：所有鱼都显示相同内容
-            const wordData = wordManager.getRandomWordForFish();
+            const studyMode = wordManager.getCurrentStudyMode();
             
-            fish = Fish.createRandomFish(
-                this.resources, 
-                GameConfig.CANVAS_WIDTH, 
-                GameConfig.CANVAS_HEIGHT,
-                wordData
-            );
-            
-            console.log(`生成背单词鱼类：类型${fish.type}, 方向${fish.direction > 0 ? '右' : '左'}, 内容: "${wordData?.displayText}", 是否正确: ${wordData?.isCorrect}`);
+            if (studyMode === 'beidanci') {
+                // 背单词模式：所有鱼都显示相同内容
+                const wordData = wordManager.getRandomWordForFish();
+                
+                fish = Fish.createRandomFish(
+                    this.resources, 
+                    GameConfig.CANVAS_WIDTH, 
+                    GameConfig.CANVAS_HEIGHT,
+                    wordData
+                );
+                
+                console.log(`生成背单词鱼类：类型${fish.type}, 方向${fish.direction > 0 ? '右' : '左'}, 内容: "${wordData?.displayText}", 是否正确: ${wordData?.isCorrect}`);
+            } else if (studyMode === 'pindanci') {
+                // 拼单词模式：生成26个字母鱼
+                this.spawnLetterFish(wordManager);
+                return;
+            } else {
+                // 其他学习模式
+                fish = Fish.createRandomFish(
+                    this.resources, 
+                    GameConfig.CANVAS_WIDTH, 
+                    GameConfig.CANVAS_HEIGHT
+                );
+            }
         } else {
             // 普通模式：生成没有单词数据的鱼类
             fish = Fish.createRandomFish(
@@ -82,7 +97,47 @@ class EntityManager {
             console.log(`生成普通鱼类：类型${fish.type}, 方向${fish.direction > 0 ? '右' : '左'}`);
         }
         
-        this.addEntity(fish);
+        if (fish) {
+            this.addEntity(fish);
+        }
+    }
+    
+    // 生成字母鱼（拼单词模式）
+    spawnLetterFish(wordManager) {
+        // 获取下一个需要的字母
+        const correctLetterData = wordManager.getLetterForFish();
+        if (!correctLetterData) {
+            console.log('拼单词已完成，不再生成字母鱼');
+            return;
+        }
+        
+        // 生成正确的字母鱼
+        const correctFish = Fish.createRandomFish(
+            this.resources,
+            GameConfig.CANVAS_WIDTH,
+            GameConfig.CANVAS_HEIGHT,
+            correctLetterData
+        );
+        this.addEntity(correctFish);
+        console.log(`生成正确字母鱼: ${correctLetterData.displayText}`);
+        
+        // 生成随机字母鱼作为干扰项（数量可调整）
+        const distractorCount = Math.floor(Math.random() * 3) + 2; // 2-4个干扰项
+        for (let i = 0; i < distractorCount; i++) {
+            if (this.fishes.length >= GameConfig.MAX_FISH_COUNT) break;
+            
+            const distractorData = wordManager.getRandomLetterForFish();
+            if (distractorData) {
+                const distractorFish = Fish.createRandomFish(
+                    this.resources,
+                    GameConfig.CANVAS_WIDTH,
+                    GameConfig.CANVAS_HEIGHT,
+                    distractorData
+                );
+                this.addEntity(distractorFish);
+                console.log(`生成干扰字母鱼: ${distractorData.displayText}`);
+            }
+        }
     }
 
     // 更新所有实体

@@ -304,6 +304,12 @@ class DialogManager {
     // 开始欢迎对话
     startWelcomeDialog() {
         console.log('开始欢迎对话，设置状态为 sliding_in');
+        // 清除所有回调函数，确保状态重置
+        this.onModeChoice = null;
+        this.onTimeChoice = null;
+        this.onStudyChoice = null;
+        this.onReplayChoice = null;
+        
         this.dialogState = 'sliding_in';
         this.currentDialog = '我是袁老板，欢迎来到我的鱼塘'; // 更新为简化的欢迎词
         this.displayedText = '';
@@ -333,6 +339,11 @@ class DialogManager {
     // 开始模式选择对话
     startModeSelectionDialog(onModeChoice) {
         console.log('开始模式选择对话');
+        // 清除其他回调函数
+        this.onTimeChoice = null;
+        this.onStudyChoice = null;
+        this.onReplayChoice = null;
+        // 设置模式选择回调
         this.onModeChoice = onModeChoice;
         this.dialogState = 'talking'; // 直接设置为说话状态，因为袁老板已经在位置上
         this.currentDialog = DialogConfig.MODE_SELECTION_TEXT; // '请选择游戏模式：娱乐模式还是学习模式'
@@ -348,6 +359,11 @@ class DialogManager {
     // 开始时间选择对话
     startTimeSelectionDialog(onTimeChoice) {
         console.log('开始时间选择对话');
+        // 清除其他回调函数
+        this.onModeChoice = null;
+        this.onStudyChoice = null;
+        this.onReplayChoice = null;
+        // 设置时间选择回调
         this.onTimeChoice = onTimeChoice;
         this.dialogState = 'talking';
         this.currentDialog = DialogConfig.TIME_SELECTION_TEXT; // '请选择游戏时长'
@@ -363,6 +379,11 @@ class DialogManager {
     // 开始学习选择对话
     startStudySelectionDialog(onStudyChoice) {
         console.log('开始学习选择对话');
+        // 清除其他回调函数
+        this.onModeChoice = null;
+        this.onTimeChoice = null;
+        this.onReplayChoice = null;
+        // 设置学习选择回调
         this.onStudyChoice = onStudyChoice;
         this.dialogState = 'talking';
         this.currentDialog = DialogConfig.STUDY_SELECTION_TEXT; // '请选择学习内容'
@@ -377,6 +398,12 @@ class DialogManager {
     
     // 开始结束对话
     startEndDialog(onReplayChoice) {
+        console.log('开始结束对话（模式选择）');
+        // 清除所有其他回调函数
+        this.onTimeChoice = null;
+        this.onStudyChoice = null;
+        this.onReplayChoice = null;
+        // 设置模式选择回调
         this.onModeChoice = onReplayChoice; // 改为模式选择回调
         this.dialogState = 'sliding_in';
         this.currentDialog = DialogConfig.MODE_SELECTION_TEXT; // 使用模式选择文本

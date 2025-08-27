@@ -133,6 +133,12 @@ class TimeManager {
             return;
         }
         
+        // 在拼单词模式下显示当前单词和拼写进度
+        if (gameState === GameState.PLAYING_SPELL_MODE && wordManager) {
+            this.renderSpellDisplay(ctx, wordManager);
+            return;
+        }
+        
         if (!this.isRunning && this.remainingTime === this.gameTime) {
             return; // 游戏还未开始，不显示时间
         }
@@ -210,6 +216,54 @@ class TimeManager {
         
         // 渲染背单词进度条
         this.renderWordProgressBar(ctx, progress);
+        
+        ctx.restore();
+    }
+    
+    // 渲染拼单词显示（拼单词模式）
+    renderSpellDisplay(ctx, wordManager) {
+        ctx.save();
+        
+        const currentWord = wordManager.getCurrentWord();
+        if (!currentWord) {
+            ctx.restore();
+            return;
+        }
+        
+        // 设置文字样式
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 28px Arial';
+        ctx.textAlign = 'center';
+        
+        // 添加文字阴影效果
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+        ctx.shadowBlur = 3;
+        ctx.shadowOffsetX = 1;
+        ctx.shadowOffsetY = 1;
+        
+        const x = ctx.canvas.width / 2;
+        let y = 40;
+        
+        // 显示单词和意思
+        ctx.fillText(`单词: ${currentWord.word}`, x, y);
+        y += 35;
+        ctx.fillText(`意思: ${currentWord.meaning}`, x, y);
+        y += 35;
+        
+        // 显示拼写进度
+        const progress = wordManager.getCurrentProgress();
+        const spelledPart = progress.spelledLetters.join('').toUpperCase();
+        const remainingPart = '_'.repeat(Math.max(0, progress.requiredLetters.length - progress.spelledLetters.length));
+        const spellingProgress = `${spelledPart}${remainingPart}`;
+        
+        ctx.font = 'bold 24px Arial';
+        ctx.fillText(`进度: ${spellingProgress}`, x, y);
+        
+        // 清除阴影效果
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
         
         ctx.restore();
     }

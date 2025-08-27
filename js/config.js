@@ -22,6 +22,8 @@ const GameState = {
     MENU: 'menu',
     PLAYING: 'playing',
     PLAYING_WORD_MODE: 'playing_word_mode', // 背单词游戏状态
+    PLAYING_SPELL_MODE: 'playing_spell_mode', // 拼单词游戏状态
+    PLAYING_MATCH_MODE: 'playing_match_mode', // 单词匹配游戏状态
     PAUSED: 'paused',
     TIME_UP: 'time_up',
     GAME_SETTLEMENT: 'game_settlement',

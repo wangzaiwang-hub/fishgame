@@ -68,14 +68,14 @@ class Game {
                 return; // 对话系统处理了按键，不再处理游戏按键
             }
             
-            if (this.player && (this.state === GameState.PLAYING || this.state === GameState.PLAYING_WORD_MODE)) {
+            if (this.player && (this.state === GameState.PLAYING || this.state === GameState.PLAYING_WORD_MODE || this.state === GameState.PLAYING_SPELL_MODE || this.state === GameState.PLAYING_MATCH_MODE)) {
                 this.player.setKey(event.key, true);
             }
             
             // 空格键投放鱼钩
             if (event.key === ' ' || event.key === 'Spacebar') {
                 event.preventDefault();
-                if ((this.state === GameState.PLAYING || this.state === GameState.PLAYING_WORD_MODE) && this.player) {
+                if ((this.state === GameState.PLAYING || this.state === GameState.PLAYING_WORD_MODE || this.state === GameState.PLAYING_SPELL_MODE || this.state === GameState.PLAYING_MATCH_MODE) && this.player) {
                     const hookPos = this.player.getHookStartPosition();
                     this.castHookVertical(hookPos.x, GameConfig.CANVAS_HEIGHT - 50);
                 }
@@ -83,7 +83,7 @@ class Game {
         });
 
         window.addEventListener('keyup', (event) => {
-            if (this.player && (this.state === GameState.PLAYING || this.state === GameState.PLAYING_WORD_MODE)) {
+            if (this.player && (this.state === GameState.PLAYING || this.state === GameState.PLAYING_WORD_MODE || this.state === GameState.PLAYING_SPELL_MODE || this.state === GameState.PLAYING_MATCH_MODE)) {
                 this.player.setKey(event.key, false);
             }
         });
@@ -177,11 +177,18 @@ class Game {
             this.wordWallManager = new WordWallManager(this.ctx);
             
             // 创建结算管理器
+            console.log('创建结算管理器...');
             this.settlementManager = new SettlementManager(this.ctx, this.resourceLoader.resources);
+            console.log('结算管理器创建完成');
             
             // 设置时间管理器回调
             this.timeManager.setTimeUpCallback(() => {
                 this.onTimeUp();
+            });
+            
+            // 设置单词管理器的拼写错误重置回调
+            this.wordManager.setErrorResetCallback(() => {
+                this.clearAllFishForSpellError();
             });
             
             // 创建玩家实体（位置相对于背景）
@@ -199,10 +206,20 @@ class Game {
                 // 先检查结算系统是否处理了点击
                 if (this.settlementManager && this.state === GameState.GAME_SETTLEMENT) {
                     if (this.settlementManager.handleClick(x, y)) {
-                        // 结算完成，进入结束对话
-                        this.state = GameState.END_DIALOG;
+                        // 结算完成，根据游戏模式决定跳转
                         this.settlementManager.hide();
-                        this.startEndDialog();
+                        
+                        // 检查是否为学习模式
+                        if (this.currentGameMode === 'study' && (this.currentStudyMode === 'beidanci' || this.currentStudyMode === 'pindanci' || this.currentStudyMode === 'dancipipei')) {
+                            // 背单词模式、拼单词模式和单词匹配模式：返回单词墙继续学习
+                            console.log(`${this.currentStudyMode}结算完成，返回单词墙`);
+                            this.state = GameState.WORD_WALL;
+                            this.showWordWallUI();
+                        } else {
+                            // 其他模式：进入结束对话
+                            this.state = GameState.END_DIALOG;
+                            this.startEndDialog();
+                        }
                         return;
                     }
                 }
@@ -227,7 +244,7 @@ class Game {
                     return; // 对话系统处理了点击，不再处理游戏点击
                 }
                 
-                if (this.state === GameState.PLAYING || this.state === GameState.PLAYING_WORD_MODE) {
+                if (this.state === GameState.PLAYING || this.state === GameState.PLAYING_WORD_MODE || this.state === GameState.PLAYING_SPELL_MODE || this.state === GameState.PLAYING_MATCH_MODE) {
                     this.castHookVertical(x, y);
                 }
             });
@@ -238,6 +255,12 @@ class Game {
                     if (this.state === GameState.PLAYING_WORD_MODE && data.wordData) {
                         // 背单词模式：处理单词答案
                         this.handleWordAnswer(data);
+                    } else if (this.state === GameState.PLAYING_SPELL_MODE && data.wordData) {
+                        // 拼单词模式：处理字母答案
+                        this.handleSpellAnswer(data);
+                    } else if (this.state === GameState.PLAYING_MATCH_MODE && data.wordData) {
+                        // 单词匹配模式：处理匹配答案
+                        this.handleMatchAnswer(data);
                     } else {
                         // 普通模式：正常计分
                         this.scoreManager.addScore(data.score, data.fish.type);
@@ -299,8 +322,14 @@ class Game {
         
         this.currentStudyMode = studyOption;
         
-        if (studyOption === 'beidanci') {
-            // 背单词模式：显示单词墙
+        // 设置单词管理器的学习模式
+        this.wordManager.setStudyMode(studyOption);
+        
+        if (studyOption === 'beidanci' || studyOption === 'pindanci') {
+            // 背单词模式和拼单词模式：显示单词墙
+            this.startWordWallSelection();
+        } else if (studyOption === 'dancipipei') {
+            // 单词匹配模式：也显示单词墙，但是以10个为一组
             this.startWordWallSelection();
         } else {
             // 其他模式暂时直接开始游戏
@@ -439,13 +468,22 @@ class Game {
     
     // 从单词墙开始游戏
     startWordGameFromWall() {
-        console.log('从单词墙开始背单词游戏');
+        const studyMode = this.wordManager.getCurrentStudyMode();
+        console.log(`从单词墙开始${studyMode}游戏`);
         
         // 隐藏单词墙
         this.wordWallManager.hide();
         
-        // 开始背单词游戏
-        this.startWordGame();
+        // 根据学习模式开始相应的游戏
+        if (studyMode === 'beidanci') {
+            this.startWordGame();
+        } else if (studyMode === 'pindanci') {
+            this.startSpellGame();
+        } else if (studyMode === 'dancipipei') {
+            this.startMatchGame();
+        } else {
+            console.error(`不支持的学习模式: ${studyMode}`);
+        }
     }
     
     // 开始背单词游戏
@@ -454,9 +492,6 @@ class Game {
         
         // 重置游戏状态
         this.resetGameState();
-        
-        // 重置单词管理器
-        this.wordManager.reset();
         
         // 设置阶段切换回调（清除所有鱼类）
         this.wordManager.setStageSwitchCallback(() => {
@@ -473,6 +508,40 @@ class Game {
         
         // 设置为背单词游戏状态
         this.state = GameState.PLAYING_WORD_MODE;
+        
+        this.updateUI();
+        
+        if (!this.animationId) {
+            this.lastTime = performance.now();
+            this.gameLoop();
+        }
+    }
+    
+    // 开始拼单词游戏
+    startSpellGame() {
+        console.log('开始拼单词游戏');
+        
+        // 重置游戏状态
+        this.resetGameState();
+        
+        // 确保当前单词已被选择和初始化
+        const progress = this.wordManager.getCurrentProgress();
+        if (progress.requiredLetters.length === 0) {
+            // 如果没有选择单词，默认选择第一个单词
+            console.log('拼单词模式 - 自动选择第一个单词');
+            this.wordManager.setSelectedWord(0);
+        }
+        
+        // 设置页面变化回调（更新单词墙显示）
+        this.wordManager.setPageChangeCallback(() => {
+            // 在游戏进行中不更新单词墙，只在单词墙状态下才更新
+            if (this.state === GameState.WORD_WALL) {
+                this.updateWordWallDisplay();
+            }
+        });
+        
+        // 设置为拼单词游戏状态
+        this.state = GameState.PLAYING_SPELL_MODE;
         
         this.updateUI();
         
@@ -513,15 +582,246 @@ class Game {
         }
     }
     
+    // 处理拼单词模式的答案
+    handleSpellAnswer(data) {
+        console.log('=== 处理拼单词答案 ===');
+        console.log('碰撞数据:', data);
+        
+        const fishType = data.fish.type;
+        
+        // 直接调用wordManager处理，让它做所有判定
+        const result = this.wordManager.onFishCaught(data.wordData);
+        
+        if (result) {
+            // 正确的字母：给分
+            this.scoreManager.addScore(data.score, fishType);
+            console.log('✅ 正确字母，给分');
+            
+            // 立即检查游戏是否完成（完成拼写）
+            console.log('🔍 检查游戏完成状态:');
+            const isComplete = this.wordManager.isGameComplete();
+            console.log(`  - wordManager.isGameComplete(): ${isComplete}`);
+            console.log(`  - 当前游戏状态: ${this.state}`);
+            console.log(`  - 当前学习模式: ${this.currentStudyMode}`);
+            
+            if (isComplete) {
+                console.log('🎉 拼单词游戏完成！直接触发结算');
+                // 直接调用结算，不使用延迟和中间方法
+                this.onSpellGameComplete();
+            } else {
+                console.log('🔄 拼写尚未完成，继续游戏');
+            }
+        } else {
+            // 错误的字母：不给分，进度已经在wordManager中重置
+            console.log('❌ 错误字母，不给分，拼写进度已重置');
+        }
+    }
+    
+
+    
     // 背单词游戏完成
     onWordGameComplete() {
         console.log('背单词游戏完成！进入结算界面');
         
-        // 进入结算状态
+        // 进入结算状态，显示结算面板
         this.state = GameState.GAME_SETTLEMENT;
         
         // 开始学习模式的结算动画
         this.settlementManager.startSettlement(null, this.scoreManager, 'study', this.wordManager);
+    }
+    
+    // 拼单词游戏完成
+    onSpellGameComplete() {
+        console.log('=== 拼单词游戏完成处理开始 ===');
+        console.log('当前游戏状态:', this.state);
+        console.log('当前学习模式:', this.currentStudyMode);
+        console.log('settlementManager是否存在:', !!this.settlementManager);
+        console.log('wordManager游戏完成状态:', this.wordManager.isGameComplete());
+        
+        // 检查必要的组件
+        if (!this.settlementManager) {
+            console.error('❌ settlementManager未初始化，无法显示结算界面');
+            return;
+        }
+        
+        if (!this.wordManager.isGameComplete()) {
+            console.error('❌ 游戏实际上未完成，不应该触发结算');
+            return;
+        }
+        
+        // 停止鱼类生成，防止干扰结算界面
+        this.entityManager.lastFishSpawn = Date.now() + 999999; // 延迟很久
+        
+        // 设置状态为结算模式
+        const previousState = this.state;
+        this.state = GameState.GAME_SETTLEMENT;
+        console.log(`状态切换: ${previousState} → ${this.state}`);
+        
+        // 结算数据验证
+        const currentWord = this.wordManager.getCurrentWord();
+        const scoreData = {
+            score: this.scoreManager.getScore(),
+            fishCaught: this.scoreManager.getFishCaught()
+        };
+        console.log('结算数据:', {
+            word: currentWord?.word,
+            meaning: currentWord?.meaning,
+            score: scoreData
+        });
+        
+        // 启动结算管理器
+        console.log('⚙️ 开始启动结算管理器...');
+        try {
+            const settlementResult = this.settlementManager.startSettlement(
+                null,                    // timeOption - 拼单词模式不需要时间
+                this.scoreManager,       // 分数管理器
+                'spell',                 // 游戏模式
+                this.wordManager         // 单词管理器
+            );
+            
+            console.log('✅ 结算管理器启动成功');
+            console.log('结算管理器状态:', {
+                animationState: this.settlementManager.animationState,
+                isActive: this.settlementManager.isActive(),
+                boardPosition: `(${this.settlementManager.boardX}, ${this.settlementManager.boardY})`
+            });
+            
+        } catch (error) {
+            console.error('❌ 结算管理器启动失败:', error);
+            // 回滚状态
+            this.state = previousState;
+            return;
+        }
+        
+        // 结算开始后的状态验证
+        console.log('结算启动后的最终状态:', {
+            gameState: this.state,
+            settlementActive: this.settlementManager.isActive(),
+            animationState: this.settlementManager.animationState
+        });
+        
+        console.log('=== 拼单词游戏完成处理结束 ===');
+    }
+    
+    // 开始单词匹配游戏
+    startMatchGame() {
+        console.log('开始单词匹配游戏');
+        
+        // 重置游戏状态
+        this.resetGameState();
+        
+        // 初始化单词匹配模式
+        const currentPage = this.wordManager.getCurrentProgress().currentPage;
+        const success = this.wordManager.initWordMatchMode(currentPage);
+        
+        if (!success) {
+            console.error('初始化单词匹配模式失败');
+            return;
+        }
+        
+        // 设置为单词匹配游戏状态
+        this.state = GameState.PLAYING_MATCH_MODE;
+        
+        this.updateUI();
+        
+        if (!this.animationId) {
+            this.lastTime = performance.now();
+            this.gameLoop();
+        }
+    }
+    
+    // 处理单词匹配模式的答案
+    handleMatchAnswer(data) {
+        console.log('=== 处理单词匹配答案 ===');
+        console.log('碰撞数据:', data);
+        
+        const fishType = data.fish.type;
+        
+        // 调用wordManager处理匹配判定
+        const result = this.wordManager.onFishCaught(data.wordData);
+        
+        if (result) {
+            // 匹配正确：给分
+            this.scoreManager.addScore(data.score, fishType);
+            console.log('✅ 匹配正确，给分');
+            
+            // 检查游戏是否完成
+            if (this.wordManager.isGameComplete()) {
+                console.log('🎉 单词匹配游戏完成！');
+                this.onMatchGameComplete();
+            }
+        } else {
+            // 匹配错误：不给分，继续当前单词
+            console.log('❌ 匹配错误，不给分，重新匹配当前单词');
+        }
+    }
+    
+    // 单词匹配游戏完成
+    onMatchGameComplete() {
+        console.log('=== 单词匹配游戏完成处理开始 ===');
+        console.log('当前游戏状态:', this.state);
+        console.log('当前学习模式:', this.currentStudyMode);
+        console.log('settlementManager是否存在:', !!this.settlementManager);
+        console.log('wordManager游戏完成状态:', this.wordManager.isGameComplete());
+        
+        // 检查必要的组件
+        if (!this.settlementManager) {
+            console.error('❌ settlementManager未初始化，无法显示结算界面');
+            return;
+        }
+        
+        if (!this.wordManager.isGameComplete()) {
+            console.error('❌ 游戏实际上未完成，不应该触发结算');
+            return;
+        }
+        
+        // 停止鱼类生成，防止干扰结算界面
+        this.entityManager.lastFishSpawn = Date.now() + 999999;
+        
+        // 设置状态为结算模式
+        const previousState = this.state;
+        this.state = GameState.GAME_SETTLEMENT;
+        console.log(`状态切换: ${previousState} → ${this.state}`);
+        
+        // 启动结算管理器
+        console.log('⚙️ 开始启动结算管理器...');
+        try {
+            const settlementResult = this.settlementManager.startSettlement(
+                null,                    // timeOption - 单词匹配模式不需要时间
+                this.scoreManager,       // 分数管理器
+                'match',                 // 游戏模式
+                this.wordManager         // 单词管理器
+            );
+            
+            console.log('✅ 结算管理器启动成功');
+            
+        } catch (error) {
+            console.error('❌ 结算管理器启动失败:', error);
+            // 回滚状态
+            this.state = previousState;
+            return;
+        }
+        
+        console.log('=== 单词匹配游戏完成处理结束 ===');
+    }
+    
+    // 清除所有鱼类（拼写错误时使用）
+    clearAllFishForSpellError() {
+        console.log('拼写错误！清除所有当前鱼类，重新开始...');
+        
+        // 清除所有鱼类实体
+        const allFishes = this.entityManager.getFishes();
+        allFishes.forEach(fish => {
+            fish.destroy(); // 标记为非活跃，下一帧会被移除
+        });
+        
+        // 立即清理非活跃实体
+        this.entityManager.fishes = this.entityManager.fishes.filter(fish => fish.active);
+        
+        // 重置鱼类生成时间，立即生成新的字母鱼
+        this.entityManager.lastFishSpawn = 0;
+        
+        console.log('所有鱼类已清除，即将重新生成字母鱼');
     }
     
     // 开始时间选择
@@ -596,8 +896,13 @@ class Game {
         console.log(`结束对话中选择了游戏模式: ${mode}`);
         this.currentGameMode = mode; // 保存选择的模式
         
-        // 直接进入时间选择
-        this.startTimeSelection();
+        if (mode === 'study') {
+            // 学习模式：进入学习内容选择
+            this.startStudySelection();
+        } else {
+            // 娱乐模式：进入时间选择
+            this.startTimeSelection();
+        }
     }
     
     bindEvents() {
@@ -646,10 +951,17 @@ class Game {
     // 退出游戏
     exitGame() {
         console.log('退出游戏，当前currentTimeOption:', this.currentTimeOption);
+        console.log('当前游戏状态:', this.state);
+        
         // 停止时间管理器
         this.timeManager.stop();
+        
+        // 重置游戏状态
+        this.resetGameState();
+        
         // 返回到欢迎对话状态
         this.state = GameState.WELCOME_DIALOG;
+        
         // 重新开始欢迎对话
         this.startWelcomeDialog();
         this.updateUI();
@@ -767,14 +1079,21 @@ class Game {
         
         // 更新结算管理器
         if (this.settlementManager && this.state === GameState.GAME_SETTLEMENT) {
+            console.log('[GameLoop] 正在更新结算管理器...');
+            console.log('[GameLoop] 结算管理器状态:', {
+                animationState: this.settlementManager.animationState,
+                boardX: this.settlementManager.boardX,
+                boardY: this.settlementManager.boardY
+            });
             this.settlementManager.update(deltaTime);
+            console.log('[GameLoop] 结算管理器更新完成');
         }
         
         // 更新时间管理器
         this.timeManager.update(deltaTime);
 
         // 更新游戏状态
-        if (this.state === GameState.PLAYING || this.state === GameState.PLAYING_WORD_MODE) {
+        if (this.state === GameState.PLAYING || this.state === GameState.PLAYING_WORD_MODE || this.state === GameState.PLAYING_SPELL_MODE || this.state === GameState.PLAYING_MATCH_MODE) {
             this.update(deltaTime);
         }
 
@@ -787,8 +1106,8 @@ class Game {
 
     // 更新游戏状态
     update(deltaTime) {
-        // 在背单词模式下传入wordManager
-        if (this.state === GameState.PLAYING_WORD_MODE) {
+        // 在背单词模式、拼单词模式和单词匹配模式下传入wordManager
+        if (this.state === GameState.PLAYING_WORD_MODE || this.state === GameState.PLAYING_SPELL_MODE || this.state === GameState.PLAYING_MATCH_MODE) {
             this.entityManager.update(deltaTime, this.wordManager);
         } else {
             this.entityManager.update(deltaTime);
@@ -820,14 +1139,23 @@ class Game {
         
         // 结算画面渲染（最高优先级）
         if (this.settlementManager && this.state === GameState.GAME_SETTLEMENT) {
+            console.log('[Render] 正在渲染结算画面...');
+            console.log('[Render] 结算管理器状态:', {
+                isActive: this.settlementManager.isActive(),
+                animationState: this.settlementManager.animationState,
+                boardX: this.settlementManager.boardX,
+                boardY: this.settlementManager.boardY
+            });
+            
             // 结算状态下也渲染游戏实体作为背景
             this.entityManager.render(this.ctx);
             this.scoreManager.renderScoreAnimations(this.ctx);
             this.timeManager.renderTimeDisplay(this.ctx, this.state, this.wordManager);
-            this.renderUI();
+            // 注意：结算状态下不显示左上角UI信息，避免与结算画面的信息冲突
             
             // 然后渲染结算画面
             this.settlementManager.render();
+            console.log('[Render] 结算画面渲染完成');
             return;
         }
         
@@ -873,7 +1201,13 @@ class Game {
         this.ctx.shadowOffsetX = 1;
         this.ctx.shadowOffsetY = 1;
         
-        if (this.state === GameState.PLAYING_WORD_MODE) {
+        // 判断是否为学习模式（包括结算状态下的学习模式）
+        const isStudyMode = this.currentStudyMode === 'beidanci' || this.currentStudyMode === 'pindanci' || this.currentStudyMode === 'dancipipei';
+        const isWordMode = this.state === GameState.PLAYING_WORD_MODE || (this.state === GameState.GAME_SETTLEMENT && this.currentStudyMode === 'beidanci');
+        const isSpellMode = this.state === GameState.PLAYING_SPELL_MODE || (this.state === GameState.GAME_SETTLEMENT && this.currentStudyMode === 'pindanci');
+        const isMatchMode = this.state === GameState.PLAYING_MATCH_MODE || (this.state === GameState.GAME_SETTLEMENT && this.currentStudyMode === 'dancipipei');
+        
+        if (isWordMode) {
             // 背单词模式：只显示学习相关信息
             this.ctx.fillText('背单词', leftMargin, topMargin);
             
@@ -881,6 +1215,28 @@ class Game {
             if (currentWord) {
                 this.ctx.fillText(`单词: ${currentWord.word}`, leftMargin, topMargin + lineHeight);
                 this.ctx.fillText(`意思: ${currentWord.meaning}`, leftMargin, topMargin + lineHeight * 2);
+            }
+        } else if (isSpellMode) {
+            // 拼单词模式：显示拼单词相关信息
+            this.ctx.fillText('拼单词', leftMargin, topMargin);
+            
+            const currentWord = this.wordManager.getCurrentWord();
+            if (currentWord) {
+                this.ctx.fillText(`单词: ${currentWord.word}`, leftMargin, topMargin + lineHeight);
+                this.ctx.fillText(`意思: ${currentWord.meaning}`, leftMargin, topMargin + lineHeight * 2);
+            }
+        } else if (isMatchMode) {
+            // 单词匹配模式：显示单词匹配相关信息
+            this.ctx.fillText('单词匹配', leftMargin, topMargin);
+            
+            if (this.currentStudyMode === 'dancipipei') {
+                const displayText = this.wordManager.getMatchModeDisplayText();
+                if (displayText) {
+                    const lines = displayText.split('\n');
+                    lines.forEach((line, index) => {
+                        this.ctx.fillText(line, leftMargin, topMargin + lineHeight * (index + 1));
+                    });
+                }
             }
         } else {
             // 娱乐模式：显示分数信息
@@ -944,9 +1300,40 @@ class Game {
                 pauseBtn.disabled = true;
                 restartBtn.disabled = true;
                 break;
+            case GameState.WORD_WALL:
+                // 单词墙状态下显示退出游戏
+                startBtn.disabled = false;
+                startBtn.textContent = '退出游戏';
+                pauseBtn.disabled = true;
+                restartBtn.disabled = true;
+                break;
             case GameState.PLAYING:
                 startBtn.disabled = false;
                 startBtn.textContent = '退出游戏'; // 将开始按钮改为退出按钮
+                pauseBtn.disabled = false;
+                pauseBtn.textContent = '暂停';
+                restartBtn.disabled = false;
+                break;
+            case GameState.PLAYING_WORD_MODE:
+                // 背单词游戏模式下也显示退出游戏
+                startBtn.disabled = false;
+                startBtn.textContent = '退出游戏';
+                pauseBtn.disabled = false;
+                pauseBtn.textContent = '暂停';
+                restartBtn.disabled = false;
+                break;
+            case GameState.PLAYING_SPELL_MODE:
+                // 拼单词游戏模式下也显示退出游戏
+                startBtn.disabled = false;
+                startBtn.textContent = '退出游戏';
+                pauseBtn.disabled = false;
+                pauseBtn.textContent = '暂停';
+                restartBtn.disabled = false;
+                break;
+            case GameState.PLAYING_MATCH_MODE:
+                // 单词匹配游戏模式下也显示退出游戏
+                startBtn.disabled = false;
+                startBtn.textContent = '退出游戏';
                 pauseBtn.disabled = false;
                 pauseBtn.textContent = '暂停';
                 restartBtn.disabled = false;
@@ -976,6 +1363,35 @@ class Game {
         if (this.animationId) {
             cancelAnimationFrame(this.animationId);
             this.animationId = null;
+        }
+    }
+    
+    // 🔧 调试方法：手动触发拼单词结算（用于测试）
+    debugTriggerSpellSettlement() {
+        console.log('🔧 [调试] 手动触发拼单词结算测试');
+        console.log('当前游戏状态:', this.state);
+        console.log('当前学习模式:', this.currentStudyMode);
+        console.log('wordManager游戏完成状态:', this.wordManager ? this.wordManager.isGameComplete() : 'wordManager不存在');
+        
+        if (this.wordManager) {
+            const progress = this.wordManager.getCurrentProgress();
+            console.log('拼单词进度详情:', {
+                spelledLetters: progress.spelledLetters,
+                requiredLetters: progress.requiredLetters,
+                fishCaught: progress.fishCaught,
+                targetFishCount: progress.targetFishCount,
+                currentStudyMode: this.wordManager.getCurrentStudyMode()
+            });
+        }
+        
+        // 强制设置为拼单词完成状态并触发结算
+        if (this.wordManager && this.currentStudyMode === 'pindanci') {
+            const progress = this.wordManager.getCurrentProgress();
+            progress.fishCaught = 1; // 强制设置完成
+            console.log('🔧 [调试] 强制设置fishCaught=1，触发结算');
+            this.onSpellGameComplete();
+        } else {
+            console.log('❌ [调试] 不在拼单词模式或wordManager不存在');
         }
     }
 }

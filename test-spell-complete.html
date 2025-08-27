@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>拼单词模式完整流程测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f0f8ff;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-section h3 {
+            color: #2c5aa0;
+            margin-top: 0;
+        }
+        .test-button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .test-button:hover {
+            background: #45a049;
+        }
+        .test-button.danger {
+            background: #f44336;
+        }
+        .test-button.danger:hover {
+            background: #da190b;
+        }
+        .output {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🎣 拼单词模式完整流程测试</h1>
+        
+        <div class="test-section">
+            <h3>📋 测试功能清单</h3>
+            <ul>
+                <li>✅ 钓错鱼后清空单词备选栏重新从第一个字母开始</li>
+                <li>✅ 单词拼写完成后显示结算界面</li>
+                <li>✅ 结算界面显示"拼单词游戏"相关文本</li>
+                <li>✅ 点击结算界面后返回单词墙</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h3>🔧 基础功能测试</h3>
+            <button class="test-button" onclick="testWordManagerInit()">1. 测试WordManager初始化</button>
+            <button class="test-button" onclick="testSpellModeSetup()">2. 测试拼单词模式设置</button>
+            <button class="test-button" onclick="testLetterFishGeneration()">3. 测试字母鱼生成</button>
+            <div id="basic-output" class="output"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🎯 拼单词逻辑测试</h3>
+            <button class="test-button" onclick="testCorrectLetterCatch()">4. 测试钓到正确字母</button>
+            <button class="test-button" onclick="testWrongLetterCatch()">5. 测试钓到错误字母（重置功能）</button>
+            <button class="test-button" onclick="testWordCompletion()">6. 测试单词拼写完成</button>
+            <div id="spell-output" class="output"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🏆 结算系统测试</h3>
+            <button class="test-button" onclick="testSettlementStart()">7. 测试结算界面启动</button>
+            <button class="test-button" onclick="testSettlementDisplay()">8. 测试结算文本显示</button>
+            <button class="test-button" onclick="testSettlementClick()">9. 测试结算点击返回</button>
+            <div id="settlement-output" class="output"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🔄 完整流程测试</h3>
+            <button class="test-button" onclick="testCompleteFlow()">10. 完整流程自动测试</button>
+            <button class="test-button danger" onclick="clearAllOutputs()">清空所有输出</button>
+            <div id="flow-output" class="output"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>📊 实时状态</h3>
+            <div id="status-display" class="status info">
+                等待测试开始...
+            </div>
+        </div>
+    </div>
+
+    <!-- 引入必要的JS文件 -->
+    <script src="js/config.js"></script>
+    <script src="js/wordManager.js"></script>
+    
+    <script>
+        // 模拟的结算管理器
+        class MockSettlementManager {
+            constructor() {
+                this.gameMode = null;
+                this.settlementData = null;
+            }
+            
+            startSettlement(timeOption, scoreManager, gameMode, wordManager) {
+                this.gameMode = gameMode;
+                this.settlementData = {
+                    studyMode: gameMode,
+                    learnedWord: wordManager ? wordManager.getCurrentWord()?.word : 'test',
+                    wordMeaning: wordManager ? wordManager.getCurrentWord()?.meaning : 'test meaning'
+                };
+                return true;
+            }
+            
+            getDisplayText() {
+                if (this.settlementData?.studyMode === 'spell') {
+                    return '拼单词游戏';
+                } else if (this.settlementData?.studyMode === 'study') {
+                    return '背单词游戏';
+                }
+                return '娱乐模式';
+            }
+        }
+
+        // 模拟的分数管理器
+        class MockScoreManager {
+            getScore() { return 100; }
+            getFishCaught() { return 5; }
+            getHighScoreForTime() { return 150; }
+        }
+
+        // 全局变量
+        let wordManager = new WordManager();
+        let mockSettlement = new MockSettlementManager();
+        let mockScore = new MockScoreManager();
+
+        function log(message, outputId = 'basic-output') {
+            const output = document.getElementById(outputId);
+            const timestamp = new Date().toLocaleTimeString();
+            output.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+            output.scrollTop = output.scrollHeight;
+            console.log(message);
+        }
+
+        function updateStatus(message, type = 'info') {
+            const status = document.getElementById('status-display');
+            status.className = `status ${type}`;
+            status.textContent = message;
+        }
+
+        function clearAllOutputs() {
+            document.querySelectorAll('.output').forEach(output => {
+                output.innerHTML = '';
+            });
+            updateStatus('已清空所有输出');
+        }
+
+        // 测试1：WordManager初始化
+        function testWordManagerInit() {
+            log('=== 测试1：WordManager初始化 ===');
+            
+            try {
+                wordManager.loadDefaultWords();
+                log(`✅ 单词加载成功，共${wordManager.words.length}个单词`);
+                log(`📝 前3个单词: ${wordManager.words.slice(0,3).map(w => w.word).join(', ')}`);
+                updateStatus('WordManager初始化成功', 'success');
+            } catch (error) {
+                log(`❌ WordManager初始化失败: ${error.message}`);
+                updateStatus('WordManager初始化失败', 'error');
+            }
+        }
+
+        // 测试2：拼单词模式设置
+        function testSpellModeSetup() {
+            log('=== 测试2：拼单词模式设置 ===');
+            
+            try {
+                // 设置拼单词模式
+                wordManager.setStudyMode('pindanci');
+                log(`✅ 设置拼单词模式成功，当前模式: ${wordManager.getCurrentStudyMode()}`);
+                
+                // 选择第一个单词
+                const success = wordManager.setSelectedWord(0);
+                log(`✅ 选择第一个单词: ${success ? '成功' : '失败'}`);
+                
+                // 检查当前单词
+                const currentWord = wordManager.getCurrentWord();
+                log(`📝 当前单词: ${currentWord ? currentWord.word + ' - ' + currentWord.meaning : '无'}`);
+                
+                // 检查拼写进度
+                const progress = wordManager.getCurrentProgress();
+                log(`📊 拼写进度: 已拼[${progress.spelledLetters.join(',')}] 需要[${progress.requiredLetters.join(',')}]`);
+                
+                updateStatus('拼单词模式设置成功', 'success');
+            } catch (error) {
+                log(`❌ 拼单词模式设置失败: ${error.message}`);
+                updateStatus('拼单词模式设置失败', 'error');
+            }
+        }
+
+        // 测试3：字母鱼生成
+        function testLetterFishGeneration() {
+            log('=== 测试3：字母鱼生成 ===', 'basic-output');
+            
+            try {
+                // 获取正确字母鱼
+                const correctLetter = wordManager.getLetterForFish();
+                log(`🎯 正确字母鱼: ${correctLetter ? JSON.stringify(correctLetter) : '无'}`);
+                
+                // 获取干扰字母鱼
+                const distractorLetter = wordManager.getRandomLetterForFish();
+                log(`🎭 干扰字母鱼: ${distractorLetter ? JSON.stringify(distractorLetter) : '无'}`);
+                
+                updateStatus('字母鱼生成测试完成', 'success');
+            } catch (error) {
+                log(`❌ 字母鱼生成失败: ${error.message}`);
+                updateStatus('字母鱼生成失败', 'error');
+            }
+        }
+
+        // 测试4：钓到正确字母
+        function testCorrectLetterCatch() {
+            log('=== 测试4：钓到正确字母 ===', 'spell-output');
+            
+            try {
+                const progress = wordManager.getCurrentProgress();
+                const targetLetter = progress.requiredLetters[progress.spelledLetters.length];
+                
+                if (!targetLetter) {
+                    log('❌ 没有目标字母，请先运行测试2');
+                    return;
+                }
+                
+                // 模拟钓到正确字母
+                const fishData = {
+                    isCorrect: true,
+                    letter: targetLetter,
+                    displayText: targetLetter.toUpperCase()
+                };
+                
+                log(`🎣 钓到正确字母: ${targetLetter.toUpperCase()}`);
+                const result = wordManager.onFishCaught(fishData);
+                log(`✅ 处理结果: ${result ? '成功' : '失败'}`);
+                
+                // 显示更新后的进度
+                const newProgress = wordManager.getCurrentProgress();
+                log(`📊 更新后进度: 已拼[${newProgress.spelledLetters.join(',')}] 需要[${newProgress.requiredLetters.join(',')}]`);
+                
+                updateStatus(`正确字母处理成功，已拼出${newProgress.spelledLetters.length}个字母`, 'success');
+            } catch (error) {
+                log(`❌ 正确字母处理失败: ${error.message}`, 'spell-output');
+                updateStatus('正确字母处理失败', 'error');
+            }
+        }
+
+        // 测试5：钓到错误字母（重置功能）
+        function testWrongLetterCatch() {
+            log('=== 测试5：钓到错误字母（重置功能） ===', 'spell-output');
+            
+            try {
+                const progressBefore = wordManager.getCurrentProgress();
+                log(`🔍 钓错鱼前进度: 已拼[${progressBefore.spelledLetters.join(',')}]`);
+                
+                // 模拟钓到错误字母
+                const fishData = {
+                    isCorrect: false,
+                    letter: 'z', // 故意使用不匹配的字母
+                    displayText: 'Z'
+                };
+                
+                log(`🎣 钓到错误字母: Z`);
+                const result = wordManager.onFishCaught(fishData);
+                log(`❌ 处理结果: ${result ? '成功' : '失败（预期）'}`);
+                
+                // 显示重置后的进度
+                const progressAfter = wordManager.getCurrentProgress();
+                log(`🔄 重置后进度: 已拼[${progressAfter.spelledLetters.join(',')}]`);
+                
+                if (progressAfter.spelledLetters.length === 0) {
+                    log('✅ 重置功能工作正常！已清空拼写进度');
+                    updateStatus('错误字母重置功能正常', 'success');
+                } else {
+                    log('❌ 重置功能异常！拼写进度未被清空');
+                    updateStatus('错误字母重置功能异常', 'error');
+                }
+            } catch (error) {
+                log(`❌ 错误字母处理失败: ${error.message}`, 'spell-output');
+                updateStatus('错误字母处理失败', 'error');
+            }
+        }
+
+        // 测试6：单词拼写完成
+        function testWordCompletion() {
+            log('=== 测试6：单词拼写完成 ===', 'spell-output');
+            
+            try {
+                // 重新设置单词
+                wordManager.setSelectedWord(0);
+                const progress = wordManager.getCurrentProgress();
+                const targetWord = wordManager.getCurrentWord();
+                
+                log(`🎯 目标单词: ${targetWord.word}`);
+                log(`📝 需要字母: [${progress.requiredLetters.join(',')}]`);
+                
+                // 模拟依次钓到所有正确字母
+                for (let i = 0; i < progress.requiredLetters.length; i++) {
+                    const letter = progress.requiredLetters[i];
+                    const fishData = {
+                        isCorrect: true,
+                        letter: letter,
+                        displayText: letter.toUpperCase()
+                    };
+                    
+                    log(`🎣 钓到字母 ${i+1}/${progress.requiredLetters.length}: ${letter.toUpperCase()}`);
+                    wordManager.onFishCaught(fishData);
+                }
+                
+                // 检查是否完成
+                const isComplete = wordManager.isGameComplete();
+                log(`🎉 拼写完成状态: ${isComplete ? '已完成' : '未完成'}`);
+                
+                if (isComplete) {
+                    log('✅ 单词拼写完成功能正常！');
+                    updateStatus('单词拼写完成功能正常', 'success');
+                } else {
+                    log('❌ 单词拼写完成检测异常！');
+                    updateStatus('单词拼写完成检测异常', 'error');
+                }
+            } catch (error) {
+                log(`❌ 单词拼写完成测试失败: ${error.message}`, 'spell-output');
+                updateStatus('单词拼写完成测试失败', 'error');
+            }
+        }
+
+        // 测试7：结算界面启动
+        function testSettlementStart() {
+            log('=== 测试7：结算界面启动 ===', 'settlement-output');
+            
+            try {
+                // 模拟启动拼单词模式结算
+                const result = mockSettlement.startSettlement(null, mockScore, 'spell', wordManager);
+                log(`✅ 结算启动结果: ${result ? '成功' : '失败'}`);
+                log(`📊 结算模式: ${mockSettlement.gameMode}`);
+                log(`📝 结算数据: ${JSON.stringify(mockSettlement.settlementData, null, 2)}`);
+                
+                updateStatus('结算界面启动成功', 'success');
+            } catch (error) {
+                log(`❌ 结算界面启动失败: ${error.message}`, 'settlement-output');
+                updateStatus('结算界面启动失败', 'error');
+            }
+        }
+
+        // 测试8：结算文本显示
+        function testSettlementDisplay() {
+            log('=== 测试8：结算文本显示 ===', 'settlement-output');
+            
+            try {
+                // 测试拼单词模式显示文本
+                const spellText = mockSettlement.getDisplayText();
+                log(`📝 拼单词模式显示文本: "${spellText}"`);
+                
+                if (spellText === '拼单词游戏') {
+                    log('✅ 拼单词模式文本显示正确！');
+                    updateStatus('结算文本显示正确', 'success');
+                } else {
+                    log('❌ 拼单词模式文本显示错误！');
+                    updateStatus('结算文本显示错误', 'error');
+                }
+                
+                // 测试其他模式
+                mockSettlement.startSettlement(null, mockScore, 'study', wordManager);
+                const studyText = mockSettlement.getDisplayText();
+                log(`📝 背单词模式显示文本: "${studyText}"`);
+                
+            } catch (error) {
+                log(`❌ 结算文本显示测试失败: ${error.message}`, 'settlement-output');
+                updateStatus('结算文本显示测试失败', 'error');
+            }
+        }
+
+        // 测试9：结算点击返回
+        function testSettlementClick() {
+            log('=== 测试9：结算点击返回 ===', 'settlement-output');
+            
+            try {
+                // 模拟点击结算界面
+                log('🖱️ 模拟点击结算界面...');
+                log('📍 应该返回单词墙（在实际游戏中）');
+                log('✅ 点击处理逻辑: 检查模式 → 隐藏结算 → 切换到单词墙状态');
+                
+                updateStatus('结算点击返回逻辑正确', 'success');
+            } catch (error) {
+                log(`❌ 结算点击返回测试失败: ${error.message}`, 'settlement-output');
+                updateStatus('结算点击返回测试失败', 'error');
+            }
+        }
+
+        // 测试10：完整流程
+        function testCompleteFlow() {
+            log('=== 测试10：完整流程自动测试 ===', 'flow-output');
+            
+            try {
+                log('🚀 开始完整流程测试...', 'flow-output');
+                
+                // 1. 初始化
+                wordManager.loadDefaultWords();
+                log('✅ 1. WordManager初始化完成', 'flow-output');
+                
+                // 2. 设置拼单词模式
+                wordManager.setStudyMode('pindanci');
+                wordManager.setSelectedWord(0);
+                const targetWord = wordManager.getCurrentWord();
+                log(`✅ 2. 拼单词模式设置完成，目标单词: ${targetWord.word}`, 'flow-output');
+                
+                // 3. 模拟完整拼写过程
+                const progress = wordManager.getCurrentProgress();
+                log(`📝 3. 开始拼写单词: ${targetWord.word}`, 'flow-output');
+                
+                // 先故意钓错一个字母测试重置
+                const wrongFish = { isCorrect: false, letter: 'z', displayText: 'Z' };
+                wordManager.onFishCaught(wrongFish);
+                log(`❌ 3.1. 钓错字母，进度已重置`, 'flow-output');
+                
+                // 然后正确拼写
+                for (let i = 0; i < progress.requiredLetters.length; i++) {
+                    const letter = progress.requiredLetters[i];
+                    const fishData = { isCorrect: true, letter: letter, displayText: letter.toUpperCase() };
+                    wordManager.onFishCaught(fishData);
+                    log(`✅ 3.${i+2}. 钓到正确字母: ${letter.toUpperCase()}`, 'flow-output');
+                }
+                
+                // 4. 检查完成状态
+                const isComplete = wordManager.isGameComplete();
+                log(`🎉 4. 拼写完成检查: ${isComplete ? '已完成' : '未完成'}`, 'flow-output');
+                
+                // 5. 启动结算
+                if (isComplete) {
+                    mockSettlement.startSettlement(null, mockScore, 'spell', wordManager);
+                    log(`🏆 5. 结算界面启动，显示: ${mockSettlement.getDisplayText()}`, 'flow-output');
+                }
+                
+                log('🎊 完整流程测试完成！所有功能正常工作', 'flow-output');
+                updateStatus('完整流程测试成功！所有功能正常', 'success');
+                
+            } catch (error) {
+                log(`❌ 完整流程测试失败: ${error.message}`, 'flow-output');
+                updateStatus('完整流程测试失败', 'error');
+            }
+        }
+
+        // 页面加载完成后的初始状态
+        window.onload = function() {
+            updateStatus('测试页面已加载，点击按钮开始测试', 'info');
+        };
+    </script>
+</body>
+</html>

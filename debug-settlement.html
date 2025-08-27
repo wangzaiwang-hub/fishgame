@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>拼单词结算调试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f0f8ff;
+        }
+        .debug-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .debug-button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .debug-button:hover {
+            background: #45a049;
+        }
+        .debug-output {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .console-log {
+            color: #333;
+        }
+        .console-error {
+            color: #d32f2f;
+        }
+        .console-warn {
+            color: #ff9800;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 拼单词结算调试工具</h1>
+    
+    <div class="debug-panel">
+        <h3>📝 问题描述</h3>
+        <p>拼单词模式完成后，结算面板没有显示出来。</p>
+        <p>需要检查：</p>
+        <ul>
+            <li>onSpellGameComplete() 是否被正确调用</li>
+            <li>settlementManager.startSettlement() 是否正确执行</li>
+            <li>动画状态是否正确设置</li>
+            <li>render() 方法是否正确渲染</li>
+        </ul>
+    </div>
+
+    <div class="debug-panel">
+        <h3>🧪 调试操作</h3>
+        <button class="debug-button" onclick="checkConsole()">检查控制台日志</button>
+        <button class="debug-button" onclick="simulateSpellComplete()">模拟拼单词完成</button>
+        <button class="debug-button" onclick="openGame()">打开游戏</button>
+        <button class="debug-button" onclick="clearLog()">清空日志</button>
+        
+        <div id="debug-output" class="debug-output">
+            等待调试操作...
+        </div>
+    </div>
+
+    <div class="debug-panel">
+        <h3>🎯 调试步骤</h3>
+        <ol>
+            <li>点击"打开游戏"按钮</li>
+            <li>进入游戏 → 选择学习模式 → 选择拼单词 → 选择单词</li>
+            <li>开始拼单词游戏，故意钓错字母测试重置功能</li>
+            <li>然后正确拼完单词</li>
+            <li>观察控制台日志，检查结算面板是否显示</li>
+        </ol>
+    </div>
+
+    <script>
+        let debugOutput = document.getElementById('debug-output');
+        
+        function log(message, type = 'log') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = `console-${type}`;
+            logEntry.innerHTML = `[${timestamp}] ${message}`;
+            debugOutput.appendChild(logEntry);
+            debugOutput.scrollTop = debugOutput.scrollHeight;
+            
+            // 同时输出到浏览器控制台
+            console[type](message);
+        }
+        
+        function clearLog() {
+            debugOutput.innerHTML = '日志已清空...';
+        }
+        
+        function checkConsole() {
+            log('请查看浏览器开发者工具的控制台，关注以下关键信息：');
+            log('1. "=== 拼单词游戏完成 ===" - onSpellGameComplete调用');
+            log('2. "=== 结算管理器启动 ===" - startSettlement执行');
+            log('3. "[Settlement] 动画状态设置为: dropping" - 动画状态');
+            log('4. "[Settlement Render] 动画状态: ..." - 渲染状态');
+            log('5. 如果没有看到这些日志，说明流程中断了', 'warn');
+        }
+        
+        function simulateSpellComplete() {
+            log('=== 模拟拼单词完成场景 ===');
+            log('预期流程：');
+            log('1. wordManager.isGameComplete() 返回 true');
+            log('2. 调用 onSpellGameComplete()');
+            log('3. 设置 state = GAME_SETTLEMENT');
+            log('4. 调用 settlementManager.startSettlement(null, scoreManager, "spell", wordManager)');
+            log('5. 设置 animationState = "dropping"');
+            log('6. 在渲染循环中调用 settlementManager.render()');
+            log('检查实际游戏是否按此流程执行', 'warn');
+        }
+        
+        function openGame() {
+            log('正在打开游戏...');
+            try {
+                // 尝试打开游戏
+                window.open('index.html', '_blank');
+                log('游戏已在新窗口打开');
+                log('请按照调试步骤进行测试', 'warn');
+            } catch (error) {
+                log('打开游戏失败: ' + error.message, 'error');
+            }
+        }
+        
+        // 监听来自游戏窗口的消息（如果有的话）
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.type === 'debug') {
+                log(`[来自游戏] ${event.data.message}`, event.data.level || 'log');
+            }
+        });
+        
+        // 初始化
+        log('拼单词结算调试工具已启动');
+        log('点击上方按钮开始调试');
+    </script>
+</body>
+</html>

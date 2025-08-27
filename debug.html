@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>拼单词模式调试</title>
+</head>
+<body>
+    <div>
+        <button onclick="testSpellMode()">测试拼单词模式</button>
+        <button onclick="checkWordManager()">检查WordManager状态</button>
+        <div id="debug-output"></div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/wordManager.js"></script>
+    
+    <script>
+        const wordManager = new WordManager();
+        const debugOutput = document.getElementById('debug-output');
+        
+        function log(message) {
+            debugOutput.innerHTML += '<p>' + message + '</p>';
+            console.log(message);
+        }
+        
+        async function testSpellMode() {
+            debugOutput.innerHTML = '';
+            log('=== 测试拼单词模式 ===');
+            
+            // 1. 加载默认单词
+            wordManager.loadDefaultWords();
+            log('1. 加载默认单词完成，单词数量: ' + wordManager.words.length);
+            
+            // 2. 设置拼单词模式
+            wordManager.setStudyMode('pindanci');
+            log('2. 设置拼单词模式完成，当前模式: ' + wordManager.getCurrentStudyMode());
+            
+            // 3. 选择第一个单词
+            const success = wordManager.setSelectedWord(0);
+            log('3. 选择第一个单词: ' + (success ? '成功' : '失败'));
+            
+            // 4. 检查当前单词
+            const currentWord = wordManager.getCurrentWord();
+            log('4. 当前单词: ' + (currentWord ? currentWord.word + ' - ' + currentWord.meaning : '无'));
+            
+            // 5. 检查进度数据
+            const progress = wordManager.getCurrentProgress();
+            log('5. 进度数据:');
+            log('   - 已拼字母: [' + progress.spelledLetters.join(', ') + ']');
+            log('   - 需要字母: [' + progress.requiredLetters.join(', ') + ']');
+            
+            // 6. 测试获取字母鱼
+            const letterData = wordManager.getLetterForFish();
+            log('6. 字母鱼数据: ' + (letterData ? JSON.stringify(letterData) : '无'));
+            
+            // 7. 测试获取干扰字母
+            const distractorData = wordManager.getRandomLetterForFish();
+            log('7. 干扰字母数据: ' + (distractorData ? JSON.stringify(distractorData) : '无'));
+        }
+        
+        function checkWordManager() {
+            debugOutput.innerHTML = '';
+            log('=== WordManager 状态检查 ===');
+            log('当前学习模式: ' + wordManager.getCurrentStudyMode());
+            log('单词总数: ' + wordManager.words.length);
+            
+            const progress = wordManager.getCurrentProgress();
+            log('当前进度数据:');
+            log('  - selectedWordIndex: ' + progress.selectedWordIndex);
+            log('  - spelledLetters: [' + progress.spelledLetters.join(', ') + ']');
+            log('  - requiredLetters: [' + progress.requiredLetters.join(', ') + ']');
+            
+            const currentWord = wordManager.getCurrentWord();
+            if (currentWord) {
+                log('当前单词: ' + currentWord.word + ' - ' + currentWord.meaning);
+            } else {
+                log('当前单词: 无');
+            }
+        }
+    </script>
+</body>
+</html>

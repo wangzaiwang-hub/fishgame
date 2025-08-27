@@ -79,46 +79,80 @@ class SettlementManager {
     
     // 设置资源
     setResources() {
+        console.log('[Settlement] 设置资源...');
         if (this.resources) {
             this.gameOverImage = this.resources['gameover'];
-            // console.log('SettlementManager 资源加载状态:');
-            // console.log('gameover.png:', this.gameOverImage ? '加载成功' : '加载失败');
+            console.log('[Settlement] 资源加载状态:');
+            console.log('  - resources对象:', !!this.resources);
+            console.log('  - gameover.png:', this.gameOverImage ? '加载成功' : '加载失败');
+            if (this.gameOverImage) {
+                console.log(`  - 图片尺寸: ${this.gameOverImage.width}x${this.gameOverImage.height}`);
+            }
+            console.log('  - 所有资源键:', Object.keys(this.resources));
+        } else {
+            console.error('[Settlement] 资源对象为空！');
         }
     }
     
     // 开始结算动画
     startSettlement(timeOption, scoreManager, gameMode = 'amusement', wordManager = null) {
+        console.log('=== 结算管理器启动 ===');
         console.log('开始游戏结算动画，接收的timeOption:', timeOption);
         console.log('游戏模式:', gameMode);
         console.log('scoreManager状态:', {
             score: scoreManager.getScore(),
-            highScore: scoreManager.getHighScoreForTime(timeOption), // 使用指定时间的最高分
-            fishCaught: scoreManager.getFishCaught()
+            fishCaught: scoreManager.getFishCaught(),
+            hasHighScore: typeof scoreManager.getHighScoreForTime === 'function'
         });
+        console.log('wordManager是否存在:', !!wordManager);
+        console.log('gameover图片加载状态:', !!this.gameOverImage);
+        
+        // 验证必要参数
+        if (!scoreManager) {
+            console.error('❌ scoreManager参数缺失');
+            return false;
+        }
+        
+        if ((gameMode === 'study' || gameMode === 'spell') && !wordManager) {
+            console.error('❌ 学习模式需要wordManager参数');
+            return false;
+        }
         
         // 保存游戏模式和结算数据
         this.gameMode = gameMode;
         this.wordManager = wordManager;
         
-        if (gameMode === 'study' && wordManager) {
-            // 学习模式：保存单词学习数据
+        if ((gameMode === 'study' || gameMode === 'spell' || gameMode === 'match') && wordManager) {
+            // 学习模式、拼单词模式和单词匹配模式：保存单词学习数据
             const currentWord = wordManager.getCurrentWord();
-            this.settlementData = {
+            console.log('当前学习单词:', currentWord);
+            
+            let settlementData = {
                 playTime: timeOption,
                 currentScore: scoreManager.getScore(),
-                highScore: scoreManager.getHighScoreForTime(timeOption),
+                highScore: scoreManager.getHighScoreForTime ? scoreManager.getHighScoreForTime(timeOption) : scoreManager.getScore(),
                 fishCaught: scoreManager.getFishCaught(),
                 studyMode: gameMode,
                 learnedWord: currentWord ? currentWord.word : '单词',
                 wordMeaning: currentWord ? currentWord.meaning : '意思',
-                progress: wordManager.getProgress()
+                progress: wordManager.getProgress ? wordManager.getProgress() : null
             };
+            
+            // 如果是单词匹配模式，添加特殊的统计信息
+            if (gameMode === 'match') {
+                const matchStats = wordManager.getMatchModeStats();
+                if (matchStats) {
+                    settlementData.matchStats = matchStats;
+                }
+            }
+            
+            this.settlementData = settlementData;
         } else {
             // 娱乐模式：保存普通数据
             this.settlementData = {
                 playTime: timeOption,
                 currentScore: scoreManager.getScore(),
-                highScore: scoreManager.getHighScoreForTime(timeOption), // 使用指定时间的最高分
+                highScore: scoreManager.getHighScoreForTime ? scoreManager.getHighScoreForTime(timeOption) : scoreManager.getScore(),
                 fishCaught: scoreManager.getFishCaught(),
                 studyMode: 'amusement'
             };
@@ -149,6 +183,15 @@ class SettlementManager {
         this.swingAmplitude = 0.25; // 使用更大的初始摇摆幅度
         
         console.log(`[Settlement] 结算板初始化完成 - 尺寸: ${boardWidth}x${boardHeight}`);
+        console.log(`[Settlement] 动画状态设置为: ${this.animationState}`);
+        console.log(`[Settlement] 目标位置: (${this.targetX}, ${this.targetY})`);
+        console.log(`[Settlement] 初始位置: (${this.boardX}, ${this.boardY})`);
+        
+        // 验证启动成功
+        const success = this.animationState === 'dropping' && this.animationStartTime > 0;
+        console.log(`[Settlement] 启动结果: ${success ? '成功' : '失败'}`);
+        
+        return success;
     }
     
     // 更新动画
@@ -214,15 +257,21 @@ class SettlementManager {
     
     // 渲染结算画面
     render() {
+        console.log(`[Settlement Render] 动画状态: ${this.animationState}`);
+        
         if (this.animationState === 'hidden') {
+            console.log('[Settlement Render] 状态为hidden，不渲染');
             return;
         }
+        
+        console.log('[Settlement Render] 开始渲染结算画面...');
         
         this.ctx.save();
         
         // 渲染半透明背景
         this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        console.log('[Settlement Render] 背景遮罩渲染完成');
         
         if (this.gameOverImage) {
             // 应用摇摆变换，使用缩放后的尺寸
@@ -244,15 +293,20 @@ class SettlementManager {
             // console.log(`渲染结算板: 位置(${this.boardX}, ${this.boardY}), 缩放尺寸(${scaledWidth} x ${scaledHeight}), 摇摆角度: ${this.currentAngle}`);
         } else {
             // 如果图片未加载，显示占位符
-            const fallbackWidth = 300;
-            const fallbackHeight = 200;
+            console.log('[Settlement Render] gameover图片未加载，使用占位符');
+            const fallbackWidth = this.boardWidth || 300;
+            const fallbackHeight = this.boardHeight || 200;
+            
+            console.log(`[Settlement Render] 占位符尺寸: ${fallbackWidth}x${fallbackHeight}`);
+            console.log(`[Settlement Render] 占位符位置: (${this.boardX}, ${this.boardY})`);
+            
             this.ctx.fillStyle = 'rgba(139, 69, 19, 0.9)'; // 木板颜色
             this.ctx.fillRect(this.boardX, this.boardY, fallbackWidth, fallbackHeight);
             this.ctx.strokeStyle = '#8B4513';
             this.ctx.lineWidth = 3;
             this.ctx.strokeRect(this.boardX, this.boardY, fallbackWidth, fallbackHeight);
             
-            // console.log('使用占位符渲染结算板');
+            console.log('[Settlement Render] 占位符渲染完成');
         }
         
         // 渲染结算文字信息（在变换内渲染，跟随板子摇摆）
@@ -328,19 +382,43 @@ class SettlementManager {
         const fontSize = baseFontSize * fontSizeMultiplier;
         this.ctx.font = `${fontWeight} ${Math.round(fontSize)}px Arial`;
         
-        if (this.settlementData.studyMode === 'study') {
-            // 学习模式：显示不同内容
+        if (this.settlementData.studyMode === 'study' || this.settlementData.studyMode === 'spell' || this.settlementData.studyMode === 'match') {
+            // 学习模式、拼单词模式和单词匹配模式：显示不同内容
             const line1Y = this.boardY + boardHeight * line1Position;
-            this.ctx.fillText('背单词', boardCenterX, line1Y);
+            let modeText = '背单词游戏';
+            if (this.settlementData.studyMode === 'spell') {
+                modeText = '拼单词游戏';
+            } else if (this.settlementData.studyMode === 'match') {
+                modeText = '单词匹配游戏';
+            }
+            this.ctx.fillText(modeText, boardCenterX, line1Y);
             
-            const line2Y = this.boardY + boardHeight * line2Position;
-            this.ctx.fillText(`单词: ${this.settlementData.learnedWord}`, boardCenterX, line2Y);
-            
-            const line3Y = this.boardY + boardHeight * line3Position;
-            this.ctx.fillText(`意思: ${this.settlementData.wordMeaning}`, boardCenterX, line3Y);
-            
-            const line4Y = this.boardY + boardHeight * line4Position;
-            this.ctx.fillText(`恭喜你学会了【${this.settlementData.learnedWord}】`, boardCenterX, line4Y);
+            if (this.settlementData.studyMode === 'match' && this.settlementData.matchStats) {
+                // 单词匹配模式特殊显示
+                const stats = this.settlementData.matchStats;
+                
+                const line2Y = this.boardY + boardHeight * line2Position;
+                this.ctx.fillText(`正确率: ${stats.accuracy}%`, boardCenterX, line2Y);
+                
+                const line3Y = this.boardY + boardHeight * line3Position;
+                this.ctx.fillText(`失败单词数: ${stats.errorCount}`, boardCenterX, line3Y);
+                
+                const line4Y = this.boardY + boardHeight * line4Position;
+                this.ctx.fillText(stats.encouragementText, boardCenterX, line4Y);
+            } else {
+                // 背单词和拼单词模式的显示
+                const line2Y = this.boardY + boardHeight * line2Position;
+                this.ctx.fillText(`单词: ${this.settlementData.learnedWord}`, boardCenterX, line2Y);
+                
+                const line3Y = this.boardY + boardHeight * line3Position;
+                this.ctx.fillText(`意思: ${this.settlementData.wordMeaning}`, boardCenterX, line3Y);
+                
+                const line4Y = this.boardY + boardHeight * line4Position;
+                const congratsText = this.settlementData.studyMode === 'spell' ? 
+                    `恭喜你拼出了【${this.settlementData.learnedWord}】` : 
+                    `恭喜你学会了【${this.settlementData.learnedWord}】`;
+                this.ctx.fillText(congratsText, boardCenterX, line4Y);
+            }
         } else {
             // 娱乐模式：显示分数等信息
             // 游戏时间 - 使用单独位置参数
@@ -422,10 +500,13 @@ class SettlementManager {
     
     // 处理点击事件
     handleClick(x, y) {
+        console.log(`[Settlement] 处理点击事件 - 当前状态: ${this.animationState}`);
         if (this.animationState === 'stable') {
             // 结算完成，可以点击继续
+            console.log('[Settlement] 点击事件处理完成，返回true');
             return true;
         }
+        console.log('[Settlement] 点击事件处理完成，返回false');
         return false;
     }
     

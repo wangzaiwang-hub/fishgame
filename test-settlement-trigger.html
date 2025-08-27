@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>结算触发逻辑测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .test-container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .test-button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            margin: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .test-button:hover {
+            background: #45a049;
+        }
+        
+        .test-button.danger {
+            background: #f44336;
+        }
+        
+        .test-button.danger:hover {
+            background: #da190b;
+        }
+        
+        .output {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 12px;
+            margin-top: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .status {
+            padding: 12px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .flow-diagram {
+            background: #e9ecef;
+            border: 1px solid #ced4da;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .flow-step {
+            margin: 5px 0;
+            padding: 8px;
+            background: white;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎯 结算触发逻辑测试</h1>
+    
+    <div class="test-container">
+        <h3>📋 修复内容</h3>
+        <div class="flow-diagram">
+            <div class="flow-step">✅ 重写了拼单词判定逻辑，确保只有正确字母才被认为正确</div>
+            <div class="flow-step">✅ 增加了延迟触发机制，避免渲染冲突</div>
+            <div class="flow-step">✅ 增强了状态验证，添加双重检查机制</div>
+            <div class="flow-step">✅ 改进了错误处理，增加了详细的调试日志</div>
+            <div class="flow-step">✅ 优化了结算管理器启动流程</div>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h3>🧪 测试步骤</h3>
+        <button class="test-button" onclick="testSpellCompletion()">1. 测试拼写完成检测</button>
+        <button class="test-button" onclick="testSettlementTrigger()">2. 测试结算触发逻辑</button>
+        <button class="test-button" onclick="testErrorHandling()">3. 测试错误处理</button>
+        <button class="test-button" onclick="testCompleteFlow()">4. 完整流程测试</button>
+        <button class="test-button danger" onclick="clearOutput()">清空输出</button>
+        <div id="test-output" class="output">等待测试...</div>
+    </div>
+
+    <div class="test-container">
+        <h3>🔄 游戏测试</h3>
+        <button class="test-button" onclick="openGame()">打开游戏进行实际测试</button>
+        <div class="status info">
+            <strong>测试流程：</strong><br>
+            1. 点击上方按钮打开游戏<br>
+            2. 选择学习模式 → 拼单词<br>
+            3. 选择一个单词开始游戏<br>
+            4. 正确拼完单词，观察是否出现结算画面<br>
+            5. 检查浏览器控制台的详细日志
+        </div>
+    </div>
+
+    <!-- 引入游戏脚本 -->
+    <script src="js/config.js"></script>
+    <script src="js/wordManager.js"></script>
+    
+    <script>
+        function log(message, level = 'info') {
+            const output = document.getElementById('test-output');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${level.toUpperCase()}: ${message}\n`;
+            output.textContent += logEntry;
+            output.scrollTop = output.scrollHeight;
+            
+            // 同时输出到控制台
+            console[level](message);
+        }
+        
+        function clearOutput() {
+            document.getElementById('test-output').textContent = '输出已清空...\n';
+        }
+        
+        // 模拟的游戏组件
+        class MockGame {
+            constructor() {
+                this.wordManager = new WordManager();
+                this.state = 'PLAYING_SPELL_MODE';
+                this.currentStudyMode = 'pindanci';
+                this.settlementManager = new MockSettlementManager();
+                this.scoreManager = new MockScoreManager();
+                this.entityManager = new MockEntityManager();
+            }
+            
+            // 模拟处理拼单词答案的新逻辑
+            handleSpellAnswer(data) {
+                log('=== 处理拼单词答案 ===');
+                log(`碰撞数据: ${JSON.stringify(data)}`);
+                
+                const result = this.wordManager.onFishCaught(data.wordData);
+                
+                if (result) {
+                    log('✅ 正确字母，给分');
+                    
+                    // 立即检查游戏是否完成
+                    if (this.wordManager.isGameComplete()) {
+                        log('🎉 拼单词游戏完成！立即触发结算');
+                        // 使用setTimeout确保在下一帧触发结算
+                        setTimeout(() => {
+                            this.triggerSpellGameComplete();
+                        }, 10);
+                    }
+                } else {
+                    log('❌ 错误字母，不给分，拼写进度已重置');
+                }
+            }
+            
+            // 触发拼单词游戏完成结算
+            triggerSpellGameComplete() {
+                log('=== 触发拼单词游戏完成结算 ===');
+                
+                // 检查游戏状态
+                if (this.state !== 'PLAYING_SPELL_MODE') {
+                    log('游戏状态不正确，取消结算触发');
+                    return;
+                }
+                
+                // 双重检查游戏是否真的完成
+                if (!this.wordManager.isGameComplete()) {
+                    log('游戏实际上未完成，取消结算触发');
+                    return;
+                }
+                
+                log('✅ 游戏状态正常，开始结算流程');
+                this.onSpellGameComplete();
+            }
+            
+            // 拼单词游戏完成处理
+            onSpellGameComplete() {
+                log('=== 拼单词游戏完成处理开始 ===');
+                log(`当前游戏状态: ${this.state}`);
+                log(`当前学习模式: ${this.currentStudyMode}`);
+                log(`settlementManager是否存在: ${!!this.settlementManager}`);
+                log(`wordManager游戏完成状态: ${this.wordManager.isGameComplete()}`);
+                
+                // 检查必要的组件
+                if (!this.settlementManager) {
+                    log('❌ settlementManager未初始化，无法显示结算界面', 'error');
+                    return;
+                }
+                
+                if (!this.wordManager.isGameComplete()) {
+                    log('❌ 游戏实际上未完成，不应该触发结算', 'error');
+                    return;
+                }
+                
+                // 停止鱼类生成
+                this.entityManager.lastFishSpawn = Date.now() + 999999;
+                
+                // 设置状态为结算模式
+                const previousState = this.state;
+                this.state = 'GAME_SETTLEMENT';
+                log(`状态切换: ${previousState} → ${this.state}`);
+                
+                // 启动结算管理器
+                log('⚙️ 开始启动结算管理器...');
+                try {
+                    const settlementResult = this.settlementManager.startSettlement(
+                        null,
+                        this.scoreManager,
+                        'spell',
+                        this.wordManager
+                    );
+                    
+                    log('✅ 结算管理器启动成功');
+                    log(`结算管理器状态: active=${this.settlementManager.isActive()}`);
+                    
+                } catch (error) {
+                    log(`❌ 结算管理器启动失败: ${error.message}`, 'error');
+                    this.state = previousState;
+                    return;
+                }
+                
+                log('=== 拼单词游戏完成处理结束 ===');
+            }
+        }
+        
+        // 模拟的结算管理器
+        class MockSettlementManager {
+            constructor() {
+                this.animationState = 'hidden';
+                this.active = false;
+            }
+            
+            startSettlement(timeOption, scoreManager, gameMode, wordManager) {
+                log(`[Settlement] 启动结算: mode=${gameMode}`);
+                this.animationState = 'dropping';
+                this.active = true;
+                return true;
+            }
+            
+            isActive() {
+                return this.active;
+            }
+        }
+        
+        // 模拟的分数管理器
+        class MockScoreManager {
+            getScore() { return 150; }
+            getFishCaught() { return 6; }
+        }
+        
+        // 模拟的实体管理器
+        class MockEntityManager {
+            constructor() {
+                this.lastFishSpawn = Date.now();
+            }
+        }
+        
+        let mockGame = new MockGame();
+        
+        // 测试函数
+        function testSpellCompletion() {
+            log('=== 测试1：拼写完成检测 ===');
+            
+            try {
+                // 初始化拼单词模式
+                mockGame.wordManager.setStudyMode('pindanci');
+                mockGame.wordManager.setSelectedWord(0);
+                
+                const progress = mockGame.wordManager.getCurrentProgress();
+                const currentWord = mockGame.wordManager.getCurrentWord();
+                
+                log(`目标单词: ${currentWord.word}`);
+                log(`需要字母: [${progress.requiredLetters.join(',')}]`);
+                
+                // 模拟依次钓到所有正确字母
+                for (let i = 0; i < progress.requiredLetters.length; i++) {
+                    const letter = progress.requiredLetters[i];
+                    const fishData = {
+                        isCorrect: true,
+                        letter: letter,
+                        displayText: letter.toUpperCase()
+                    };
+                    
+                    log(`钓到字母 ${i+1}/${progress.requiredLetters.length}: ${letter.toUpperCase()}`);
+                    mockGame.wordManager.onFishCaught(fishData);
+                }
+                
+                const isComplete = mockGame.wordManager.isGameComplete();
+                log(`✅ 拼写完成检测: ${isComplete ? '已完成' : '未完成'}`);
+                
+            } catch (error) {
+                log(`❌ 测试失败: ${error.message}`, 'error');
+            }
+        }
+        
+        function testSettlementTrigger() {
+            log('=== 测试2：结算触发逻辑 ===');
+            
+            try {
+                // 重新初始化
+                mockGame = new MockGame();
+                mockGame.wordManager.setStudyMode('pindanci');
+                mockGame.wordManager.setSelectedWord(0);
+                
+                const progress = mockGame.wordManager.getCurrentProgress();
+                
+                // 模拟拼写到最后一个字母
+                for (let i = 0; i < progress.requiredLetters.length - 1; i++) {
+                    const letter = progress.requiredLetters[i];
+                    const fishData = { isCorrect: true, letter: letter };
+                    mockGame.wordManager.onFishCaught(fishData);
+                }
+                
+                log('准备钓到最后一个字母，触发结算...');
+                
+                // 钓到最后一个字母，应该触发结算
+                const lastLetter = progress.requiredLetters[progress.requiredLetters.length - 1];
+                const mockData = {
+                    wordData: {
+                        isCorrect: true,
+                        letter: lastLetter,
+                        displayText: lastLetter.toUpperCase()
+                    },
+                    fish: { type: 1 },
+                    score: 10
+                };
+                
+                mockGame.handleSpellAnswer(mockData);
+                
+                // 等待异步触发
+                setTimeout(() => {
+                    const settlementActive = mockGame.settlementManager.isActive();
+                    log(`✅ 结算触发测试: ${settlementActive ? '成功' : '失败'}`);
+                }, 20);
+                
+            } catch (error) {
+                log(`❌ 测试失败: ${error.message}`, 'error');
+            }
+        }
+        
+        function testErrorHandling() {
+            log('=== 测试3：错误处理 ===');
+            
+            try {
+                // 测试没有settlementManager的情况
+                const gameWithoutSettlement = new MockGame();
+                gameWithoutSettlement.settlementManager = null;
+                gameWithoutSettlement.wordManager.setStudyMode('pindanci');
+                gameWithoutSettlement.wordManager.setSelectedWord(0);
+                
+                // 强制设置为完成状态
+                const progress = gameWithoutSettlement.wordManager.getCurrentProgress();
+                progress.fishCaught = 1;
+                
+                log('测试没有settlementManager的错误处理...');
+                gameWithoutSettlement.onSpellGameComplete();
+                
+                log('✅ 错误处理测试完成');
+                
+            } catch (error) {
+                log(`❌ 测试失败: ${error.message}`, 'error');
+            }
+        }
+        
+        function testCompleteFlow() {
+            log('=== 测试4：完整流程测试 ===');
+            
+            try {
+                log('🚀 开始完整流程测试...');
+                
+                // 重新初始化
+                mockGame = new MockGame();
+                mockGame.wordManager.setStudyMode('pindanci');
+                mockGame.wordManager.setSelectedWord(0);
+                
+                const progress = mockGame.wordManager.getCurrentProgress();
+                const currentWord = mockGame.wordManager.getCurrentWord();
+                
+                log(`1. 初始化完成，目标单词: ${currentWord.word}`);
+                
+                // 模拟完整的拼写过程
+                for (let i = 0; i < progress.requiredLetters.length; i++) {
+                    const letter = progress.requiredLetters[i];
+                    const mockData = {
+                        wordData: {
+                            isCorrect: true,
+                            letter: letter,
+                            displayText: letter.toUpperCase()
+                        },
+                        fish: { type: 1 },
+                        score: 10
+                    };
+                    
+                    log(`2.${i+1}. 钓到字母: ${letter.toUpperCase()}`);
+                    mockGame.handleSpellAnswer(mockData);
+                }
+                
+                // 等待异步结算触发
+                setTimeout(() => {
+                    const isComplete = mockGame.wordManager.isGameComplete();
+                    const settlementActive = mockGame.settlementManager.isActive();
+                    
+                    log(`3. 游戏完成状态: ${isComplete}`);
+                    log(`4. 结算界面状态: ${settlementActive ? '已激活' : '未激活'}`);
+                    log(`5. 游戏状态: ${mockGame.state}`);
+                    
+                    if (isComplete && settlementActive && mockGame.state === 'GAME_SETTLEMENT') {
+                        log('🎊 完整流程测试成功！所有功能正常工作');
+                    } else {
+                        log('❌ 完整流程测试失败，存在问题');
+                    }
+                }, 30);
+                
+            } catch (error) {
+                log(`❌ 测试失败: ${error.message}`, 'error');
+            }
+        }
+        
+        function openGame() {
+            log('正在打开游戏...');
+            try {
+                window.open('index.html', '_blank');
+                log('✅ 游戏已在新窗口打开');
+                log('请按照测试流程进行实际测试');
+            } catch (error) {
+                log(`❌ 打开游戏失败: ${error.message}`, 'error');
+            }
+        }
+        
+        // 页面加载完成
+        window.addEventListener('DOMContentLoaded', () => {
+            log('结算触发逻辑测试页面已加载');
+            log('点击上方按钮开始测试');
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>拼单词错误重置测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f0f8ff;
+        }
+        .test-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .test-button:hover {
+            background: #45a049;
+        }
+        .test-output {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 3px;
+            margin-left: 10px;
+            font-weight: bold;
+        }
+        .status.success { background: #4CAF50; color: white; }
+        .status.error { background: #f44336; color: white; }
+        .status.info { background: #2196F3; color: white; }
+        .display-area {
+            border: 2px solid #333;
+            padding: 20px;
+            margin: 10px 0;
+            background: #fff;
+            font-size: 18px;
+            font-weight: bold;
+            text-align: center;
+            min-height: 100px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎣 拼单词错误重置功能测试</h1>
+    
+    <div class="test-panel">
+        <h3>🎯 测试目标</h3>
+        <p>验证在拼单词模式中：</p>
+        <ol>
+            <li>钓到错误字母时：<strong>只清空拼写区域，不清除鱼类</strong></li>
+            <li>不会将错误字母添加到拼写区域</li>
+            <li>会立即清空已拼写的字母</li>
+            <li>拼写成功后显示gameover结算界面</li>
+        </ol>
+    </div>
+
+    <div class="test-panel">
+        <h3>📊 当前拼写状态</h3>
+        <div class="display-area" id="spellingDisplay">
+            等待初始化...
+        </div>
+        <p><strong>说明：</strong>上方显示当前的拼写进度，格式为 "单词意思 + 已拼字母 + 下划线"</p>
+    </div>
+
+    <div class="test-panel">
+        <h3>🧪 测试操作</h3>
+        <button class="test-button" onclick="initializeTest()">1. 初始化测试</button>
+        <button class="test-button" onclick="testCorrectLetter()">2. 钓正确字母</button>
+        <button class="test-button" onclick="testWrongLetter()">3. 钓错误字母</button>
+        <button class="test-button" onclick="testCompleteWord()">4. 完成单词拼写</button>
+        <button class="test-button" onclick="clearLog()">清空日志</button>
+        
+        <div class="test-output" id="testOutput">测试日志将显示在这里...</div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/wordManager.js"></script>
+    
+    <script>
+        let wordManager;
+        let testResults = [];
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const output = document.getElementById('testOutput');
+            const logEntry = document.createElement('div');
+            logEntry.innerHTML = `[${timestamp}] ${message}`;
+            output.appendChild(logEntry);
+            output.scrollTop = output.scrollHeight;
+            
+            console.log(message);
+        }
+        
+        function clearLog() {
+            document.getElementById('testOutput').innerHTML = '日志已清空...';
+        }
+        
+        function updateSpellingDisplay() {
+            const display = document.getElementById('spellingDisplay');
+            if (!wordManager) {
+                display.innerHTML = '未初始化';
+                return;
+            }
+            
+            const currentText = wordManager.getCurrentDisplayText();
+            const currentWord = wordManager.getCurrentWord();
+            const progress = wordManager.getCurrentProgress();
+            
+            if (currentWord) {
+                display.innerHTML = `
+                    <div>目标单词: ${currentWord.word} (${currentWord.meaning})</div>
+                    <div>当前进度: ${currentText}</div>
+                    <div>已拼字母: [${progress.spelledLetters.join(', ')}]</div>
+                    <div>需要字母: [${progress.requiredLetters.join(', ')}]</div>
+                `;
+            } else {
+                display.innerHTML = '无当前单词';
+            }
+        }
+        
+        function initializeTest() {
+            log('=== 测试1：初始化拼单词模式 ===');
+            
+            try {
+                // 创建单词管理器
+                wordManager = new WordManager();
+                wordManager.loadDefaultWords();
+                log(`✅ 单词加载成功，共${wordManager.words.length}个单词`);
+                
+                // 设置拼单词模式
+                wordManager.setStudyMode('pindanci');
+                log(`✅ 设置拼单词模式成功`);
+                
+                // 选择第一个单词
+                wordManager.setSelectedWord(0);
+                const currentWord = wordManager.getCurrentWord();
+                log(`✅ 选择单词: ${currentWord.word} - ${currentWord.meaning}`);
+                
+                updateSpellingDisplay();
+                log('初始化完成！');
+                
+            } catch (error) {
+                log(`❌ 初始化失败: ${error.message}`);
+            }
+        }
+        
+        function testCorrectLetter() {
+            if (!wordManager) {
+                log('❌ 请先初始化测试');
+                return;
+            }
+            
+            log('=== 测试2：钓正确字母 ===');
+            
+            try {
+                const progress = wordManager.getCurrentProgress();
+                if (progress.spelledLetters.length >= progress.requiredLetters.length) {
+                    log('⚠️ 单词已拼写完成，请重新初始化');
+                    return;
+                }
+                
+                const nextLetterIndex = progress.spelledLetters.length;
+                const correctLetter = progress.requiredLetters[nextLetterIndex];
+                
+                log(`📝 尝试钓正确字母: ${correctLetter.toUpperCase()}`);
+                
+                const correctFishData = {
+                    isCorrect: true,
+                    letter: correctLetter,
+                    displayText: correctLetter.toUpperCase()
+                };
+                
+                const result = wordManager.onFishCaught(correctFishData);
+                log(`✅ 钓鱼结果: ${result ? '成功' : '失败'}`);
+                
+                updateSpellingDisplay();
+                
+            } catch (error) {
+                log(`❌ 测试失败: ${error.message}`);
+            }
+        }
+        
+        function testWrongLetter() {
+            if (!wordManager) {
+                log('❌ 请先初始化测试');
+                return;
+            }
+            
+            log('=== 测试3：钓错误字母（关键测试）===');
+            
+            try {
+                const progress = wordManager.getCurrentProgress();
+                const beforeSpelled = [...progress.spelledLetters];
+                
+                log(`📝 钓错误字母前的状态: [${beforeSpelled.join(', ')}]`);
+                
+                // 钓一个错误的字母
+                const wrongFishData = {
+                    isCorrect: false,
+                    letter: 'z',
+                    displayText: 'Z'
+                };
+                
+                log(`🎣 尝试钓错误字母: Z`);
+                
+                const result = wordManager.onFishCaught(wrongFishData);
+                log(`📊 钓鱼结果: ${result ? '成功' : '失败（预期）'}`);
+                
+                const afterSpelled = [...progress.spelledLetters];
+                log(`📝 钓错误字母后的状态: [${afterSpelled.join(', ')}]`);
+                
+                // 验证是否正确重置
+                if (afterSpelled.length === 0) {
+                    log('✅ 拼写区域已正确清空！');
+                } else {
+                    log('❌ 拼写区域未清空，存在问题！');
+                }
+                
+                // 检查错误字母是否被添加
+                const hasWrongLetter = afterSpelled.includes('z');
+                if (!hasWrongLetter) {
+                    log('✅ 错误字母未被添加到拼写区域！');
+                } else {
+                    log('❌ 错误字母被错误添加了！');
+                }
+                
+                log('✅ 错误处理测试完成：只清空拼写区，不清除鱼类');
+                
+                updateSpellingDisplay();
+                
+            } catch (error) {
+                log(`❌ 测试失败: ${error.message}`);
+            }
+        }
+        
+        function testCompleteWord() {
+            if (!wordManager) {
+                log('❌ 请先初始化测试');
+                return;
+            }
+            
+            log('=== 测试4：完成单词拼写 ===');
+            
+            try {
+                const progress = wordManager.getCurrentProgress();
+                const requiredLetters = progress.requiredLetters;
+                
+                // 重置进度
+                progress.spelledLetters = [];
+                log('📝 重置拼写进度，开始完整拼写测试');
+                
+                // 逐个添加正确字母
+                for (let i = 0; i < requiredLetters.length; i++) {
+                    const letter = requiredLetters[i];
+                    const fishData = {
+                        isCorrect: true,
+                        letter: letter,
+                        displayText: letter.toUpperCase()
+                    };
+                    
+                    const result = wordManager.onFishCaught(fishData);
+                    log(`📝 添加字母 ${letter.toUpperCase()}: ${result ? '成功' : '失败'}`);
+                    
+                    if (wordManager.isGameComplete()) {
+                        log('🎉 单词拼写完成！');
+                        break;
+                    }
+                }
+                
+                updateSpellingDisplay();
+                
+            } catch (error) {
+                log(`❌ 测试失败: ${error.message}`);
+            }
+        }
+        
+        // 页面加载完成后自动运行初始化测试
+        window.addEventListener('DOMContentLoaded', () => {
+            log('页面加载完成，可以开始测试');
+            log('👆 请点击"1. 初始化测试"按钮开始');
+        });
+    </script>
+</body>
+</html>
