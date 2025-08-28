@@ -221,6 +221,25 @@ class WordManager {
         return null;
     }
     
+    // 获取当前正确答案的意思（单词匹配模式）
+    getCorrectMeaningForFish() {
+        if (this.currentStudyMode !== 'dancipipei') return null;
+        
+        const progress = this.getCurrentProgress();
+        if (progress.currentWordIndex >= progress.wordGroup.length) {
+            return null;
+        }
+        
+        const currentWord = progress.wordGroup[progress.currentWordIndex];
+        
+        return {
+            displayText: currentWord.meaning,
+            isCorrect: true,
+            word: currentWord.word,
+            meaning: currentWord.meaning
+        };
+    }
+    
     // 获取拼单词模式的字母鱼内容
     getLetterForFish() {
         if (this.currentStudyMode !== 'pindanci') {
@@ -450,9 +469,12 @@ class WordManager {
     
     // 处理单词完成后的通用逻辑
     handleWordCompletion(progress) {
-        // 拼单词模式不自动进入下一页，由游戏结算后返回单词墙
+        // 拼单词模式和单词匹配模式不自动进入下一页，由游戏结算后返回单词墙
         if (this.currentStudyMode === 'pindanci') {
             console.log('拼单词模式完成，等待显示结算界面');
+            return;
+        } else if (this.currentStudyMode === 'dancipipei') {
+            console.log('单词匹配模式完成，等待显示结算界面');
             return;
         }
         
@@ -499,6 +521,10 @@ class WordManager {
             // 拼单词模式：检查是否已完成拼写（通过fishCaught标志判断）
             console.log(`拼单词模式游戏完成检查: fishCaught=${progress.fishCaught}, target=${progress.targetFishCount}`);
             return progress.fishCaught >= progress.targetFishCount;
+        } else if (this.currentStudyMode === 'dancipipei') {
+            // 单词匹配模式：检查是否完成了所有单词的匹配
+            console.log(`单词匹配模式游戏完成检查: currentWordIndex=${progress.currentWordIndex}, wordGroupLength=${progress.wordGroup.length}`);
+            return progress.currentWordIndex >= progress.wordGroup.length;
         } else {
             // 背单词和其他模式：检查是否达到目标数量
             return progress.fishCaught >= progress.targetFishCount;
@@ -707,7 +733,9 @@ class WordManager {
         if (!currentWord) return '游戏完成！';
         
         const progress = this.getCurrentProgress();
-        return `单词: ${currentWord.word}\n进度: ${progress.currentWordIndex + 1}/${progress.wordGroup.length}`;
+        const completedCount = progress.currentWordIndex;
+        const totalCount = progress.wordGroup.length;
+        return `单词: ${currentWord.word}\n进度: ${completedCount}/${totalCount}`;
     }
     
     // 获取单词匹配模式的统计信息

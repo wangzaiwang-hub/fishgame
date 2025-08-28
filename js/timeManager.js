@@ -139,6 +139,12 @@ class TimeManager {
             return;
         }
         
+        // 在单词匹配模式下显示当前单词和进度
+        if (gameState === GameState.PLAYING_MATCH_MODE && wordManager) {
+            this.renderMatchDisplay(ctx, wordManager);
+            return;
+        }
+        
         if (!this.isRunning && this.remainingTime === this.gameTime) {
             return; // 游戏还未开始，不显示时间
         }
@@ -268,6 +274,92 @@ class TimeManager {
         ctx.restore();
     }
     
+    // 渲染单词匹配显示（单词匹配模式）
+    renderMatchDisplay(ctx, wordManager) {
+        ctx.save();
+        
+        const progress = wordManager.getCurrentProgress();
+        
+        // 检查游戏是否已完成
+        if (progress.currentWordIndex >= progress.wordGroup.length) {
+            // 游戏已完成，显示完成信息
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = 'bold 28px Arial';
+            ctx.textAlign = 'center';
+            
+            // 添加文字阴影效果
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+            ctx.shadowBlur = 3;
+            ctx.shadowOffsetX = 1;
+            ctx.shadowOffsetY = 1;
+            
+            const x = ctx.canvas.width / 2;
+            let y = 40;
+            
+            ctx.fillText('游戏完成！', x, y);
+            y += 35;
+            
+            // 显示最终进度
+            const progressText = `进度: ${progress.wordGroup.length}/${progress.wordGroup.length}`;
+            ctx.font = 'bold 18px Arial';
+            ctx.fillText(progressText, x, y);
+            
+            // 清除阴影效果
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
+            
+            // 渲染完成进度条（100%）
+            this.renderMatchProgressBar(ctx, progress, true);
+            
+            ctx.restore();
+            return;
+        }
+        
+        const currentWord = wordManager.getCurrentMatchWord();
+        if (!currentWord) {
+            ctx.restore();
+            return;
+        }
+        
+        // 设置文字样式
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 28px Arial';
+        ctx.textAlign = 'center';
+        
+        // 添加文字阴影效果
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+        ctx.shadowBlur = 3;
+        ctx.shadowOffsetX = 1;
+        ctx.shadowOffsetY = 1;
+        
+        const x = ctx.canvas.width / 2;
+        let y = 40;
+        
+        // 显示当前需要匹配的单词
+        ctx.fillText(`单词: ${currentWord.word}`, x, y);
+        y += 35;
+        
+        // 显示进度信息（显示已完成的数量）
+        const completedCount = progress.currentWordIndex;
+        const totalCount = progress.wordGroup.length;
+        const progressText = `进度: ${completedCount}/${totalCount}`;
+        ctx.font = 'bold 18px Arial';
+        ctx.fillText(progressText, x, y);
+        
+        // 清除阴影效果
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+        
+        // 渲染匹配进度条
+        this.renderMatchProgressBar(ctx, progress);
+        
+        ctx.restore();
+    }
+    
     // 渲染背单词进度条
     renderWordProgressBar(ctx, progress) {
         const barWidth = 300;
@@ -315,6 +407,46 @@ class TimeManager {
         let progressColor = '#4CAF50'; // 绿色
         if (progress > 0.7) progressColor = '#FF9800'; // 橙色
         if (progress > 0.9) progressColor = '#F44336'; // 红色
+        
+        ctx.fillStyle = progressColor;
+        ctx.fillRect(x, y, progressWidth, barHeight);
+        
+        // 边框
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x, y, barWidth, barHeight);
+    }
+    
+    // 渲染单词匹配进度条
+    renderMatchProgressBar(ctx, progress, forceComplete = false) {
+        const barWidth = 300;
+        const barHeight = 10;
+        const x = (ctx.canvas.width - barWidth) / 2;
+        const y = 85;
+        
+        // 背景条
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.fillRect(x, y, barWidth, barHeight);
+        
+        // 进度条
+        let progressRatio;
+        if (forceComplete) {
+            // 强制显示为100%完成
+            progressRatio = 1.0;
+        } else {
+            const currentIndex = progress.currentWordIndex;
+            const totalWords = progress.wordGroup.length;
+            progressRatio = currentIndex / totalWords;
+        }
+        
+        const progressWidth = barWidth * progressRatio;
+        
+        // 根据进度选择颜色
+        let progressColor = '#4CAF50'; // 绿色
+        if (progressRatio > 0.3) progressColor = '#2196F3'; // 蓝色
+        if (progressRatio > 0.6) progressColor = '#FF9800'; // 橙色
+        if (progressRatio > 0.8) progressColor = '#9C27B0'; // 紫色
+        if (forceComplete) progressColor = '#4CAF50'; // 完成时显示绿色
         
         ctx.fillStyle = progressColor;
         ctx.fillRect(x, y, progressWidth, barHeight);

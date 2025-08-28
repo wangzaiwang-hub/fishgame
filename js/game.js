@@ -388,10 +388,21 @@ class Game {
         const selectedWordIndex = this.wordManager.selectedWordIndex;
         const pageInfo = this.wordManager.getPageInfo();
         
+        // 获取单词匹配模式的错误统计信息和游戏完成状态
+        let wordErrors = null;
+        let isGameCompleted = false;
+        const studyMode = this.wordManager.getCurrentStudyMode();
+        if (studyMode === 'dancipipei') {
+            const progress = this.wordManager.getCurrentProgress();
+            wordErrors = progress.wordErrors;
+            // 检查游戏是否完成（所有单词都已匹配）
+            isGameCompleted = progress.currentWordIndex >= progress.wordGroup.length;
+        }
+        
         console.log(`显示单词墙: 第${pageInfo.currentPage}页, 单词数量: ${wordWallData.length}`);
         
         // 显示单词墙
-        this.wordWallManager.show(wordWallData, completedWords, selectedWordIndex, pageInfo);
+        this.wordWallManager.show(wordWallData, completedWords, selectedWordIndex, pageInfo, wordErrors, studyMode, isGameCompleted);
     }
     
     // 处理单词墙点击
@@ -459,10 +470,21 @@ class Game {
             const selectedWordIndex = this.wordManager.selectedWordIndex;
             const pageInfo = this.wordManager.getPageInfo();
             
+            // 获取单词匹配模式的错误统计信息和游戏完成状态
+            let wordErrors = null;
+            let isGameCompleted = false;
+            const studyMode = this.wordManager.getCurrentStudyMode();
+            if (studyMode === 'dancipipei') {
+                const progress = this.wordManager.getCurrentProgress();
+                wordErrors = progress.wordErrors;
+                // 检查游戏是否完成（所有单词都已匹配）
+                isGameCompleted = progress.currentWordIndex >= progress.wordGroup.length;
+            }
+            
             console.log(`更新单词墙显示: 第${pageInfo.currentPage}页, 选中单词索引: ${selectedWordIndex}`);
             
-            // 更新单词墙显示
-            this.wordWallManager.show(wordWallData, completedWords, selectedWordIndex, pageInfo);
+            // 更新单词墙显示，传递错误信息、学习模式和游戏完成状态
+            this.wordWallManager.show(wordWallData, completedWords, selectedWordIndex, pageInfo, wordErrors, studyMode, isGameCompleted);
         }
     }
     

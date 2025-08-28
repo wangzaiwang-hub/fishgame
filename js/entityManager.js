@@ -78,6 +78,10 @@ class EntityManager {
                 // 拼单词模式：生成26个字母鱼
                 this.spawnLetterFish(wordManager);
                 return;
+            } else if (studyMode === 'dancipipei') {
+                // 单词匹配模式：生成带有意思的鱼
+                this.spawnMeaningFish(wordManager);
+                return;
             } else {
                 // 其他学习模式
                 fish = Fish.createRandomFish(
@@ -138,6 +142,57 @@ class EntityManager {
                 console.log(`生成干扰字母鱼: ${distractorData.displayText}`);
             }
         }
+    }
+    
+    // 生成意思鱼（单词匹配模式）
+    spawnMeaningFish(wordManager) {
+        // 检查当前屏幕上正确答案鱼的数量
+        const correctFishCount = this.getCorrectAnswerFishCount();
+        const totalFishCount = this.fishes.length;
+        
+        console.log(`当前屏幕状态: 总鱼数=${totalFishCount}, 正确答案鱼数=${correctFishCount}`);
+        
+        // 如果正确答案鱼少于2条，优先生成正确答案鱼
+        if (correctFishCount < 2) {
+            const correctMeaningData = wordManager.getCorrectMeaningForFish();
+            if (correctMeaningData) {
+                const correctFish = Fish.createRandomFish(
+                    this.resources,
+                    GameConfig.CANVAS_WIDTH,
+                    GameConfig.CANVAS_HEIGHT,
+                    correctMeaningData
+                );
+                this.addEntity(correctFish);
+                console.log(`生成正确答案鱼: "${correctMeaningData.displayText}"`);
+                return;
+            }
+        }
+        
+        // 否则生成随机意思鱼（可能是正确答案，也可能是干扰项）
+        const meaningData = wordManager.getRandomWordForFish();
+        if (!meaningData) {
+            console.log('单词匹配模式：没有可用的意思数据');
+            return;
+        }
+        
+        const meaningFish = Fish.createRandomFish(
+            this.resources,
+            GameConfig.CANVAS_WIDTH,
+            GameConfig.CANVAS_HEIGHT,
+            meaningData
+        );
+        
+        this.addEntity(meaningFish);
+        console.log(`生成单词匹配鱼: "${meaningData.displayText}", 是否正确: ${meaningData.isCorrect}`);
+    }
+    
+    // 获取当前屏幕上正确答案鱼的数量
+    getCorrectAnswerFishCount() {
+        return this.fishes.filter(fish => 
+            fish.active && 
+            fish.wordData && 
+            fish.wordData.isCorrect === true
+        ).length;
     }
 
     // 更新所有实体

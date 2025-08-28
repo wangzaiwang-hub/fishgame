@@ -98,12 +98,15 @@ class WordWallManager {
     }
     
     // 显示单词墙
-    show(words, completedWords = new Set(), selectedWordIndex = 0, pageInfo = null) {
+    show(words, completedWords = new Set(), selectedWordIndex = 0, pageInfo = null, wordErrors = null, studyMode = null, isGameCompleted = false) {
         this.isVisible = true;
         this.wordsData = words; // 保存完整的单词数据（包含绝对索引信息）
         this.completedWords = new Set(completedWords);
         this.currentWordIndex = selectedWordIndex; // 当前选中的单词绝对索引
         this.pageInfo = pageInfo; // 分页信息
+        this.wordErrors = wordErrors; // 单词匹配模式的错误统计
+        this.studyMode = studyMode; // 当前学习模式
+        this.isGameCompleted = isGameCompleted; // 游戏是否已完成
         this.setupWordButtons(); // 重新计算按钮位置
         
         console.log(`显示单词墙: 第${pageInfo?.currentPage || 1}页, 单词数量: ${words.length}`);
@@ -228,7 +231,15 @@ class WordWallManager {
         ctx.shadowOffsetX = 2;
         ctx.shadowOffsetY = 2;
         
-        const title = `${this.currentLevel === 'cet4' ? '四级' : '六级'}单词墙 - 背单词模式`;
+        // 根据学习模式显示不同的标题
+        let modeText = '背单词模式';
+        if (this.studyMode === 'pindanci') {
+            modeText = '拼单词模式';
+        } else if (this.studyMode === 'dancipipei') {
+            modeText = '单词匹配模式';
+        }
+        
+        const title = `${this.currentLevel === 'cet4' ? '四级' : '六级'}单词墙 - ${modeText}`;
         ctx.fillText(title, ctx.canvas.width / 2, 100);
         
         // 清除阴影
@@ -285,12 +296,41 @@ class WordWallManager {
             
             // 确定按钮颜色
             let buttonColor;
-            if (wordData.completed) {
-                buttonColor = WordWallConfig.COMPLETED_COLOR; // 已完成：绿色
-            } else if (wordData.current) {
-                buttonColor = WordWallConfig.CURRENT_COLOR; // 当前单词：蓝色
+            
+            // 检查是否是单词匹配模式且游戏已完成
+            if (this.studyMode === 'dancipipei' && this.isGameCompleted && this.wordErrors) {
+                // 只对当前游戏组的单词显示红绿色
+                const wordKey = `${wordData.word}-${wordData.meaning}`;
+                const hasRecord = this.wordErrors.has(wordKey);
+                
+                // 只有在wordErrors中有记录的单词才显示红绿色（表示这是当前游戏组的单词）
+                if (hasRecord) {
+                    const hasError = this.wordErrors.get(wordKey) > 0;
+                    
+                    if (hasError) {
+                        buttonColor = '#F44336'; // 有错误的单词显示红色
+                    } else {
+                        buttonColor = '#4CAF50'; // 正确的单词显示绿色
+                    }
+                } else {
+                    // 不在当前游戏组中的单词，使用正常颜色逻辑
+                    if (wordData.completed) {
+                        buttonColor = WordWallConfig.COMPLETED_COLOR; // 已完成：绿色
+                    } else if (wordData.current) {
+                        buttonColor = WordWallConfig.CURRENT_COLOR; // 当前单词：蓝色
+                    } else {
+                        buttonColor = WordWallConfig.INCOMPLETE_COLOR; // 未完成：灰色
+                    }
+                }
             } else {
-                buttonColor = WordWallConfig.INCOMPLETE_COLOR; // 未完成：灰色
+                // 正常的单词墙颜色逻辑
+                if (wordData.completed) {
+                    buttonColor = WordWallConfig.COMPLETED_COLOR; // 已完成：绿色
+                } else if (wordData.current) {
+                    buttonColor = WordWallConfig.CURRENT_COLOR; // 当前单词：蓝色
+                } else {
+                    buttonColor = WordWallConfig.INCOMPLETE_COLOR; // 未完成：灰色
+                }
             }
             
             // 绘制圆角按钮背景
@@ -443,12 +483,23 @@ class WordWallManager {
         ctx.shadowOffsetX = 1;
         ctx.shadowOffsetY = 1;
         
-        const instructions = [
-            '绿色：已完成的单词',
-            '蓝色：当前学习的单词',
-            '灰色：待学习的单词',
-            '点击左上角可切换四级/六级单词'
-        ];
+        let instructions;
+        if (this.studyMode === 'dancipipei' && this.isGameCompleted && this.wordErrors) {
+            // 单词匹配模式结束后的说明
+            instructions = [
+                '绿色：匹配正确的单词',
+                '红色：匹配错误的单词',
+                '点击左上角可切换四级/六级单词'
+            ];
+        } else {
+            // 普通模式的说明
+            instructions = [
+                '绿色：已完成的单词',
+                '蓝色：当前学习的单词',
+                '灰色：待学习的单词',
+                '点击左上角可切换四级/六级单词'
+            ];
+        }
         
         const startY = ctx.canvas.height - 150;
         instructions.forEach((text, index) => {
