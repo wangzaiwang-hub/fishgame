@@ -32,6 +32,11 @@ class Game {
         // 监听窗口大小变化
         window.addEventListener('resize', () => this.resizeCanvas());
         
+        // 监听全屏状态变化
+        document.addEventListener('fullscreenchange', () => this.handleFullscreenChange());
+        document.addEventListener('webkitfullscreenchange', () => this.handleFullscreenChange());
+        document.addEventListener('msfullscreenchange', () => this.handleFullscreenChange());
+        
         // 监听键盘事件
         this.bindKeyboardEvents();
     }
@@ -947,6 +952,7 @@ class Game {
         const startBtn = document.getElementById('startBtn');
         const pauseBtn = document.getElementById('pauseBtn');
         const restartBtn = document.getElementById('restartBtn');
+        const gameContainer = document.getElementById('gameContainer');
 
         startBtn.addEventListener('click', () => {
             if (startBtn.textContent === '退出游戏') {
@@ -955,10 +961,89 @@ class Game {
                 this.start();
             }
         });
-        pauseBtn.addEventListener('click', () => this.pause());
+        
+        pauseBtn.addEventListener('click', () => {
+            // 切换暂停/继续状态
+            if (this.state === GameState.PAUSED) {
+                this.resume(); // 继续游戏
+            } else {
+                this.pause(); // 暂停游戏
+            }
+        });
+        
         restartBtn.addEventListener('click', () => this.restart());
+        
+        // 添加触屏端全屏切换功能
+        gameContainer.addEventListener('dblclick', () => {
+            this.toggleFullscreen();
+        });
     }
 
+    // 暂停游戏
+    pause() {
+        if (this.state === GameState.PLAYING || 
+            this.state === GameState.PLAYING_WORD_MODE || 
+            this.state === GameState.PLAYING_SPELL_MODE || 
+            this.state === GameState.PLAYING_MATCH_MODE) {
+            this.state = GameState.PAUSED;
+            this.timeManager.pause(); // 暂停计时
+            this.updateUI();
+            console.log('游戏已暂停');
+        }
+    }
+    
+    // 继续游戏
+    resume() {
+        if (this.state === GameState.PAUSED) {
+            this.state = GameState.PLAYING;
+            this.timeManager.resume(); // 继续计时
+            this.updateUI();
+            console.log('游戏已继续');
+        }
+    }
+
+    // 切换全屏模式
+    toggleFullscreen() {
+        const gameContainer = document.getElementById('gameContainer');
+        
+        if (!document.fullscreenElement) {
+            // 进入全屏
+            if (gameContainer.requestFullscreen) {
+                gameContainer.requestFullscreen();
+            } else if (gameContainer.webkitRequestFullscreen) { // Safari
+                gameContainer.webkitRequestFullscreen();
+            } else if (gameContainer.msRequestFullscreen) { // IE11
+                gameContainer.msRequestFullscreen();
+            }
+        } else {
+            // 退出全屏
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) { // Safari
+                document.webkitExitFullscreen();
+            } else if (document.msExitFullscreen) { // IE11
+                document.msExitFullscreen();
+            }
+        }
+    }
+
+    // 全屏状态变化事件处理
+    handleFullscreenChange() {
+        const gameContainer = document.getElementById('gameContainer');
+        const isFullscreen = !!document.fullscreenElement || 
+                            !!document.webkitFullscreenElement || 
+                            !!document.msFullscreenElement;
+        
+        // 更新全屏按钮文本
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        if (fullscreenBtn) {
+            fullscreenBtn.textContent = isFullscreen ? '退出全屏' : '全屏';
+        }
+        
+        // 可以在这里添加全屏状态变化的处理逻辑
+        console.log('全屏状态变化:', isFullscreen ? '进入全屏' : '退出全屏');
+    }
+    
     // 完全重置游戏状态
     resetGameState() {
         console.log('完全重置游戏状态');
@@ -1023,18 +1108,6 @@ class Game {
                 this.lastTime = performance.now();
                 this.gameLoop();
             }
-        }
-    }
-
-    // 暂停游戏
-    pause() {
-        if (this.state === GameState.PLAYING) {
-            this.state = GameState.PAUSED;
-            this.timeManager.pause(); // 暂停计时
-            this.updateUI();
-        } else if (this.state === GameState.PAUSED) {
-            this.timeManager.resume(); // 继续计时
-            this.start();
         }
     }
 
