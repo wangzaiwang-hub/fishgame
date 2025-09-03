@@ -196,6 +196,9 @@ class Game {
             this.player = new Player(playerPos.x, playerPos.y, this.resourceLoader.resources);
             this.entityManager.addEntity(this.player);
             
+            // 设置输入处理器的玩家控制器引用（用于触屏控制）
+            this.inputHandler.setPlayerController(this.player);
+            
             // 创建一个持久的鱼钩实体
             const hookPos = this.player.getHookStartPosition();
             const hook = new Hook(hookPos.x, hookPos.y, this.player);
@@ -531,6 +534,9 @@ class Game {
         // 设置为背单词游戏状态
         this.state = GameState.PLAYING_WORD_MODE;
         
+        // 显示触屏操作提示（如果是触屏设备）
+        this.sceneManager.showTouchGuideHint();
+        
         this.updateUI();
         
         if (!this.animationId) {
@@ -564,6 +570,9 @@ class Game {
         
         // 设置为拼单词游戏状态
         this.state = GameState.PLAYING_SPELL_MODE;
+        
+        // 显示触屏操作提示（如果是触屏设备）
+        this.sceneManager.showTouchGuideHint();
         
         this.updateUI();
         
@@ -744,6 +753,9 @@ class Game {
         // 设置为单词匹配游戏状态
         this.state = GameState.PLAYING_MATCH_MODE;
         
+        // 显示触屏操作提示（如果是触屏设备）
+        this.sceneManager.showTouchGuideHint();
+        
         this.updateUI();
         
         if (!this.animationId) {
@@ -882,6 +894,10 @@ class Game {
         // 直接开始游戏，不进入菜单状态
         this.state = GameState.PLAYING;
         this.timeManager.start(); // 开始计时
+        
+        // 显示触屏操作提示（如果是触屏设备）
+        this.sceneManager.showTouchGuideHint();
+        
         this.updateUI();
         
         if (!this.animationId) {
@@ -962,6 +978,9 @@ class Game {
         this.player = new Player(playerPos.x, playerPos.y, this.resourceLoader.resources);
         this.entityManager.addEntity(this.player);
         
+        // 设置输入处理器的玩家控制器引用（用于触屏控制）
+        this.inputHandler.setPlayerController(this.player);
+        
         // 创建新的鱼钩
         const hookPos = this.player.getHookStartPosition();
         const hook = new Hook(hookPos.x, hookPos.y, this.player);
@@ -994,6 +1013,10 @@ class Game {
         if (this.state === GameState.MENU || this.state === GameState.PAUSED) {
             this.state = GameState.PLAYING;
             this.timeManager.start(); // 开始计时
+            
+            // 显示触屏操作提示（如果是触屏设备）
+            this.sceneManager.showTouchGuideHint();
+            
             this.updateUI();
             
             if (!this.animationId) {
@@ -1031,11 +1054,17 @@ class Game {
         
         this.timeManager.start(); // 开始计时
         
+        // 显示触屏操作提示（如果是触屏设备）
+        this.sceneManager.showTouchGuideHint();
+        
         // 重新创建玩家和鱼钩
         if (this.player) {
             const playerPos = this.getBackgroundRelativePosition(0.1, 0.15);
             this.player = new Player(playerPos.x, playerPos.y, this.resourceLoader.resources);
             this.entityManager.addEntity(this.player);
+            
+            // 设置输入处理器的玩家控制器引用
+            this.inputHandler.setPlayerController(this.player);
             
             // 创建新的鱼钩
             const hookPos = this.player.getHookStartPosition();

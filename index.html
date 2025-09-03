@@ -64,10 +64,17 @@
             <button id="restartBtn" disabled>重新开始</button>
         </div>
         <div id="instructions" style="position: absolute; bottom: 20px; left: 20px; color: white; background-color: rgba(0, 0, 0, 0.5); padding: 10px; border-radius: 5px; font-size: 14px;">
-            操作说明：<br>
-            A/D 键：左右移动<br>
-            空格键：投放鱼钩<br>
-            鼠标点击：投放鱼钩到指定深度
+            <div id="desktopInstructions">
+                操作说明（桌面端）：<br>
+                A/D 键：左右移动<br>
+                空格键：投放鱼钩<br>
+                鼠标点击：投放鱼钩到指定深度
+            </div>
+            <div id="touchInstructions" style="display: none;">
+                操作说明（触屏端）：<br>
+                左半屏滑动：左右移动<br>
+                右半屏点击：投放鱼钩到指定深度
+            </div>
         </div>
     </div>
 
