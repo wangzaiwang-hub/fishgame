@@ -53,50 +53,29 @@
             background-color: rgba(102, 102, 102, 0.8);
             cursor: not-allowed;
         }
-        
-        /* 触屏端全屏按钮 */
-        #fullscreenBtn {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            z-index: 100;
-            background-color: rgba(0, 102, 204, 0.8);
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-            backdrop-filter: blur(5px);
-            display: none; /* 默认隐藏，触屏时显示 */
-        }
-        
-        #fullscreenBtn:hover {
-            background-color: rgba(0, 136, 255, 0.9);
-        }
     </style>
 </head>
 <body>
     <div id="gameContainer">
         <canvas id="gameCanvas"></canvas>
         <div id="gameControls">
-            <button id="startBtn">开始游戏</button>
             <button id="pauseBtn" disabled>暂停</button>
             <button id="restartBtn" disabled>重新开始</button>
+            <button id="fullscreenBtn">全屏</button>
         </div>
-        <button id="fullscreenBtn">全屏</button>
         <div id="instructions" style="position: absolute; bottom: 20px; left: 20px; color: white; background-color: rgba(0, 0, 0, 0.5); padding: 10px; border-radius: 5px; font-size: 14px;">
             <div id="desktopInstructions">
                 操作说明（桌面端）：<br>
                 A/D 键：左右移动<br>
                 空格键：投放鱼钩<br>
-                鼠标点击：投放鱼钩到指定深度
+                鼠标点击：投放鱼钩到指定深度<br>
+                双击屏幕或点击全屏按钮：切换全屏
             </div>
             <div id="touchInstructions" style="display: none;">
                 操作说明（触屏端）：<br>
                 左半屏滑动：左右移动<br>
                 右半屏点击：投放鱼钩到指定深度<br>
-                双击屏幕：切换全屏
+                双击屏幕或点击全屏按钮：切换全屏
             </div>
         </div>
     </div>
@@ -121,34 +100,14 @@
     <script src="js/main.js"></script>
     
     <script>
-        // 检测是否为触屏设备并显示全屏按钮
-        function detectTouchDevice() {
-            const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0);
-            const fullscreenBtn = document.getElementById('fullscreenBtn');
-            const touchInstructions = document.getElementById('touchInstructions');
-            const desktopInstructions = document.getElementById('desktopInstructions');
-            
-            if (isTouch) {
-                fullscreenBtn.style.display = 'block';
-                touchInstructions.style.display = 'block';
-                desktopInstructions.style.display = 'none';
-            } else {
-                fullscreenBtn.style.display = 'none';
-                touchInstructions.style.display = 'none';
-                desktopInstructions.style.display = 'block';
-            }
-        }
-        
         // 页面加载完成后检测设备类型
         window.addEventListener('DOMContentLoaded', () => {
-            detectTouchDevice();
-        });
-        
-        // 全屏按钮点击事件
-        document.getElementById('fullscreenBtn').addEventListener('click', () => {
-            if (game) {
-                game.toggleFullscreen();
-            }
+            // 全屏按钮点击事件
+            document.getElementById('fullscreenBtn').addEventListener('click', () => {
+                if (game) {
+                    game.toggleFullscreen();
+                }
+            });
         });
     </script>
 </body>

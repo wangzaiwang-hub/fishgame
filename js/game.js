@@ -949,19 +949,11 @@ class Game {
     }
     
     bindEvents() {
-        const startBtn = document.getElementById('startBtn');
         const pauseBtn = document.getElementById('pauseBtn');
         const restartBtn = document.getElementById('restartBtn');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
         const gameContainer = document.getElementById('gameContainer');
 
-        startBtn.addEventListener('click', () => {
-            if (startBtn.textContent === '退出游戏') {
-                this.exitGame();
-            } else {
-                this.start();
-            }
-        });
-        
         pauseBtn.addEventListener('click', () => {
             // 切换暂停/继续状态
             if (this.state === GameState.PAUSED) {
@@ -973,7 +965,14 @@ class Game {
         
         restartBtn.addEventListener('click', () => this.restart());
         
-        // 添加触屏端全屏切换功能
+        // 全屏按钮点击事件
+        if (fullscreenBtn) {
+            fullscreenBtn.addEventListener('click', () => {
+                this.toggleFullscreen();
+            });
+        }
+        
+        // 双击全屏切换
         gameContainer.addEventListener('dblclick', () => {
             this.toggleFullscreen();
         });
@@ -1406,73 +1405,54 @@ class Game {
 
     // 更新UI按钮状态
     updateUI() {
-        const startBtn = document.getElementById('startBtn');
         const pauseBtn = document.getElementById('pauseBtn');
         const restartBtn = document.getElementById('restartBtn');
 
         switch (this.state) {
             case GameState.WELCOME_DIALOG:
             case GameState.END_DIALOG:
-                startBtn.disabled = true;
-                startBtn.textContent = '开始游戏';
                 pauseBtn.disabled = true;
                 restartBtn.disabled = true;
                 break;
             case GameState.MENU:
-                startBtn.disabled = false;
-                startBtn.textContent = '开始游戏';
                 pauseBtn.disabled = true;
                 restartBtn.disabled = true;
                 break;
             case GameState.WORD_WALL:
                 // 单词墙状态下显示退出游戏
-                startBtn.disabled = false;
-                startBtn.textContent = '退出游戏';
                 pauseBtn.disabled = true;
                 restartBtn.disabled = true;
                 break;
             case GameState.PLAYING:
-                startBtn.disabled = false;
-                startBtn.textContent = '退出游戏'; // 将开始按钮改为退出按钮
                 pauseBtn.disabled = false;
                 pauseBtn.textContent = '暂停';
                 restartBtn.disabled = false;
                 break;
             case GameState.PLAYING_WORD_MODE:
                 // 背单词游戏模式下也显示退出游戏
-                startBtn.disabled = false;
-                startBtn.textContent = '退出游戏';
                 pauseBtn.disabled = false;
                 pauseBtn.textContent = '暂停';
                 restartBtn.disabled = false;
                 break;
             case GameState.PLAYING_SPELL_MODE:
                 // 拼单词游戏模式下也显示退出游戏
-                startBtn.disabled = false;
-                startBtn.textContent = '退出游戏';
                 pauseBtn.disabled = false;
                 pauseBtn.textContent = '暂停';
                 restartBtn.disabled = false;
                 break;
             case GameState.PLAYING_MATCH_MODE:
                 // 单词匹配游戏模式下也显示退出游戏
-                startBtn.disabled = false;
-                startBtn.textContent = '退出游戏';
                 pauseBtn.disabled = false;
                 pauseBtn.textContent = '暂停';
                 restartBtn.disabled = false;
                 break;
             case GameState.PAUSED:
-                startBtn.disabled = false;
-                startBtn.textContent = '退出游戏'; // 暂停时也显示退出按钮
                 pauseBtn.disabled = false;
                 pauseBtn.textContent = '继续';
                 restartBtn.disabled = false;
                 break;
             case GameState.TIME_UP:
             case GameState.GAME_OVER:
-                startBtn.disabled = true;
-                startBtn.textContent = '开始游戏';
                 pauseBtn.disabled = true;
                 restartBtn.disabled = true;
                 break;
