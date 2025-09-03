@@ -17,6 +17,11 @@ class InputHandler {
         this.leftMoving = false;
         this.rightMoving = false;
         
+        // 多点触控支持
+        this.activeTouches = new Map(); // 存储所有活动的触摸点
+        this.leftScreenTouchId = null; // 左半屏触摸点ID
+        this.rightScreenTouchId = null; // 右半屏触摸点ID
+        
         this.bindEvents();
     }
 
@@ -29,25 +34,23 @@ class InputHandler {
 
         // 触摸开始事件
         this.canvas.addEventListener('touchstart', (event) => {
-            event.preventDefault();
+            // 不再preventDefault，允许多点触控
             this.handleTouchStart(event);
         });
         
         // 触摸移动事件
         this.canvas.addEventListener('touchmove', (event) => {
-            event.preventDefault();
+            // 不再preventDefault，允许多点触控
             this.handleTouchMove(event);
         });
         
         // 触摸结束事件
         this.canvas.addEventListener('touchend', (event) => {
-            event.preventDefault();
             this.handleTouchEnd(event);
         });
         
         // 触摸取消事件
         this.canvas.addEventListener('touchcancel', (event) => {
-            event.preventDefault();
             this.handleTouchEnd(event);
         });
 
@@ -87,8 +90,9 @@ class InputHandler {
 
     // 处理触摸开始事件
     handleTouchStart = (event) => {
-        if (event.touches.length > 0) {
-            const touch = event.touches[0];
+        // 处理所有触摸点
+        for (let i = 0; i < event.changedTouches.length; i++) {
+            const touch = event.changedTouches[i];
             const rect = this.canvas.getBoundingClientRect();
             const x = touch.clientX - rect.left;
             const y = touch.clientY - rect.top;
@@ -97,10 +101,14 @@ class InputHandler {
             const canvasX = (x / rect.width) * this.canvas.width;
             const canvasY = (y / rect.height) * this.canvas.height;
             
-            this.touchStartX = canvasX;
-            this.touchStartY = canvasY;
-            this.touchStartTime = Date.now();
-            this.isTouching = true;
+            // 存储触摸点信息
+            this.activeTouches.set(touch.identifier, {
+                startX: canvasX,
+                startY: canvasY,
+                currentTime: Date.now(),
+                x: canvasX,
+                y: canvasY
+            });
             
             console.log(`触摸开始位置: (${Math.round(canvasX)}, ${Math.round(canvasY)})`);
             
@@ -108,10 +116,12 @@ class InputHandler {
             const screenMiddle = this.canvas.width / 2;
             
             if (canvasX < screenMiddle) {
-                // 左半屏：开始检测滑动
+                // 左半屏：记录左半屏触摸点ID
+                this.leftScreenTouchId = touch.identifier;
                 console.log('左半屏触摸开始，准备检测滑动');
             } else {
                 // 右半屏：立即投放鱼钩
+                this.rightScreenTouchId = touch.identifier;
                 console.log('右半屏点击，投放鱼钩');
                 if (this.clickCallback) {
                     this.clickCallback(canvasX, canvasY);
@@ -122,39 +132,50 @@ class InputHandler {
     
     // 处理触摸移动事件
     handleTouchMove = (event) => {
-        if (!this.isTouching || event.touches.length === 0) return;
-        
-        const touch = event.touches[0];
-        const rect = this.canvas.getBoundingClientRect();
-        const x = touch.clientX - rect.left;
-        const y = touch.clientY - rect.top;
-        
-        // 转换为Canvas坐标
-        const canvasX = (x / rect.width) * this.canvas.width;
-        const canvasY = (y / rect.height) * this.canvas.height;
-        
-        const screenMiddle = this.canvas.width / 2;
-        
-        // 只在左半屏处理滑动
-        if (this.touchStartX < screenMiddle) {
-            const deltaX = canvasX - this.touchStartX;
-            const deltaY = canvasY - this.touchStartY;
-            const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        // 处理所有触摸点
+        for (let i = 0; i < event.changedTouches.length; i++) {
+            const touch = event.changedTouches[i];
+            const rect = this.canvas.getBoundingClientRect();
+            const x = touch.clientX - rect.left;
+            const y = touch.clientY - rect.top;
             
-            // 如果滑动距离超过阈值，进行方向判定
-            if (distance > this.swipeThreshold) {
-                // 只关注X轴方向，忽略Y轴
-                if (Math.abs(deltaX) > Math.abs(deltaY) * 0.5) { // X轴移动明显大于Y轴
-                    if (deltaX > 0) {
-                        // 向右滑动
-                        this.setPlayerMovement('right', true);
-                        this.setPlayerMovement('left', false);
-                        console.log('检测到向右滑动');
-                    } else {
-                        // 向左滑动
-                        this.setPlayerMovement('left', true);
-                        this.setPlayerMovement('right', false);
-                        console.log('检测到向左滑动');
+            // 转换为Canvas坐标
+            const canvasX = (x / rect.width) * this.canvas.width;
+            const canvasY = (y / rect.height) * this.canvas.height;
+            
+            // 更新触摸点信息
+            if (this.activeTouches.has(touch.identifier)) {
+                const touchInfo = this.activeTouches.get(touch.identifier);
+                touchInfo.x = canvasX;
+                touchInfo.y = canvasY;
+            }
+            
+            const screenMiddle = this.canvas.width / 2;
+            
+            // 只处理左半屏的滑动
+            if (touch.identifier === this.leftScreenTouchId) {
+                const touchInfo = this.activeTouches.get(touch.identifier);
+                if (touchInfo) {
+                    const deltaX = canvasX - touchInfo.startX;
+                    const deltaY = canvasY - touchInfo.startY;
+                    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                    
+                    // 如果滑动距离超过阈值，进行方向判定
+                    if (distance > this.swipeThreshold) {
+                        // 只关注X轴方向，忽略Y轴
+                        if (Math.abs(deltaX) > Math.abs(deltaY) * 0.5) { // X轴移动明显大于Y轴
+                            if (deltaX > 0) {
+                                // 向右滑动
+                                this.setPlayerMovement('right', true);
+                                this.setPlayerMovement('left', false);
+                                console.log('检测到向右滑动');
+                            } else {
+                                // 向左滑动
+                                this.setPlayerMovement('left', true);
+                                this.setPlayerMovement('right', false);
+                                console.log('检测到向左滑动');
+                            }
+                        }
                     }
                 }
             }
@@ -163,19 +184,28 @@ class InputHandler {
     
     // 处理触摸结束事件
     handleTouchEnd = (event) => {
-        if (!this.isTouching) return;
-        
-        console.log('触摸结束');
-        
-        // 停止所有移动
-        this.setPlayerMovement('left', false);
-        this.setPlayerMovement('right', false);
-        
-        // 重置触摸状态
-        this.isTouching = false;
-        this.touchStartX = 0;
-        this.touchStartY = 0;
-        this.touchStartTime = 0;
+        // 处理所有结束的触摸点
+        for (let i = 0; i < event.changedTouches.length; i++) {
+            const touch = event.changedTouches[i];
+            
+            // 检查是否是左半屏触摸点结束
+            if (touch.identifier === this.leftScreenTouchId) {
+                console.log('左半屏触摸结束');
+                // 停止所有移动
+                this.setPlayerMovement('left', false);
+                this.setPlayerMovement('right', false);
+                this.leftScreenTouchId = null;
+            }
+            
+            // 检查是否是右半屏触摸点结束
+            if (touch.identifier === this.rightScreenTouchId) {
+                console.log('右半屏触摸结束');
+                this.rightScreenTouchId = null;
+            }
+            
+            // 移除触摸点
+            this.activeTouches.delete(touch.identifier);
+        }
     }
 
     // 处理鼠标移动
