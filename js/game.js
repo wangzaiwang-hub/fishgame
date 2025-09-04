@@ -285,6 +285,9 @@ class Game {
             this.state = GameState.WELCOME_DIALOG;
             this.startWelcomeDialog();
             
+            // 添加：更新UI按钮状态，确保退出游戏按钮可用
+            this.updateUI();
+            
             return true;
         } catch (error) {
             console.error('游戏初始化失败:', error);
