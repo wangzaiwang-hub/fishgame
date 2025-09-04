@@ -9,6 +9,9 @@ class Game {
         this.currentTimeOption = 1; // 初始化时间选项，默认为1分钟
         this.currentGameMode = null; // 当前游戏模式：'amusement' 或 'study'
         
+        // 用户偏好设置
+        this.userPreferences = this.loadUserPreferences();
+        
         // 设置全屏Canvas
         this.resizeCanvas();
         
@@ -307,6 +310,9 @@ class Game {
         console.log(`选择了游戏模式: ${mode}`);
         this.currentGameMode = mode; // 保存选择的模式
         
+        // 保存用户偏好设置
+        this.saveUserPreferences();
+        
         if (mode === 'study') {
             // 学习模式：进入学习内容选择
             this.startStudySelection();
@@ -329,6 +335,9 @@ class Game {
         console.log(`选择了学习内容: ${studyOption}`);
         
         this.currentStudyMode = studyOption;
+        
+        // 保存用户偏好设置
+        this.saveUserPreferences();
         
         // 设置单词管理器的学习模式
         this.wordManager.setStudyMode(studyOption);
@@ -877,6 +886,10 @@ class Game {
         
         // 保存当前选择的时间选项
         this.currentTimeOption = timeOption;
+        
+        // 保存用户偏好设置
+        this.saveUserPreferences();
+        
         console.log('保存后的currentTimeOption:', this.currentTimeOption, '类型:', typeof this.currentTimeOption);
         
         // 设置分数管理器的时间选项
@@ -963,7 +976,10 @@ class Game {
             }
         });
         
-        restartBtn.addEventListener('click', () => this.restart());
+        restartBtn.addEventListener('click', () => {
+            // 无论什么模式下，点击退出游戏按钮都返回初始页
+            this.exitGame();
+        });
         
         // 全屏按钮点击事件
         if (fullscreenBtn) {
@@ -1041,6 +1057,47 @@ class Game {
         
         // 可以在这里添加全屏状态变化的处理逻辑
         console.log('全屏状态变化:', isFullscreen ? '进入全屏' : '退出全屏');
+    }
+    
+    // 保存用户偏好设置到本地存储
+    saveUserPreferences() {
+        try {
+            const preferences = {
+                currentGameMode: this.currentGameMode,
+                currentStudyMode: this.currentStudyMode,
+                currentTimeOption: this.currentTimeOption,
+                lastSelectedWordLevel: this.wordManager ? this.wordManager.level : 'cet4'
+            };
+            
+            localStorage.setItem('fishingGameUserPreferences', JSON.stringify(preferences));
+            console.log('用户偏好设置已保存:', preferences);
+        } catch (error) {
+            console.warn('无法保存用户偏好设置:', error);
+        }
+    }
+
+    // 从本地存储加载用户偏好设置
+    loadUserPreferences() {
+        try {
+            const saved = localStorage.getItem('fishingGameUserPreferences');
+            if (saved) {
+                const preferences = JSON.parse(saved);
+                console.log('加载的用户偏好设置:', preferences);
+                
+                // 恢复设置
+                this.currentGameMode = preferences.currentGameMode || null;
+                this.currentStudyMode = preferences.currentStudyMode || null;
+                this.currentTimeOption = preferences.currentTimeOption || 1;
+                
+                return preferences;
+            } else {
+                console.log('没有找到保存的用户偏好设置');
+                return {};
+            }
+        } catch (error) {
+            console.warn('无法加载用户偏好设置:', error);
+            return {};
+        }
     }
     
     // 完全重置游戏状态
@@ -1412,49 +1469,52 @@ class Game {
             case GameState.WELCOME_DIALOG:
             case GameState.END_DIALOG:
                 pauseBtn.disabled = true;
-                restartBtn.disabled = true;
+                // 修改：让退出游戏按钮始终保持启用状态
+                restartBtn.disabled = false;
                 break;
             case GameState.MENU:
                 pauseBtn.disabled = true;
-                restartBtn.disabled = true;
+                // 修改：让退出游戏按钮始终保持启用状态
+                restartBtn.disabled = false;
                 break;
             case GameState.WORD_WALL:
                 // 单词墙状态下显示退出游戏
                 pauseBtn.disabled = true;
-                restartBtn.disabled = true;
+                restartBtn.disabled = false;
+                restartBtn.textContent = '退出游戏';
                 break;
             case GameState.PLAYING:
                 pauseBtn.disabled = false;
                 pauseBtn.textContent = '暂停';
                 restartBtn.disabled = false;
+                restartBtn.textContent = '退出游戏';
                 break;
             case GameState.PLAYING_WORD_MODE:
-                // 背单词游戏模式下也显示退出游戏
-                pauseBtn.disabled = false;
-                pauseBtn.textContent = '暂停';
-                restartBtn.disabled = false;
-                break;
             case GameState.PLAYING_SPELL_MODE:
-                // 拼单词游戏模式下也显示退出游戏
-                pauseBtn.disabled = false;
-                pauseBtn.textContent = '暂停';
-                restartBtn.disabled = false;
-                break;
             case GameState.PLAYING_MATCH_MODE:
-                // 单词匹配游戏模式下也显示退出游戏
+                // 学习模式下显示退出游戏
                 pauseBtn.disabled = false;
                 pauseBtn.textContent = '暂停';
                 restartBtn.disabled = false;
+                restartBtn.textContent = '退出游戏';
                 break;
             case GameState.PAUSED:
                 pauseBtn.disabled = false;
                 pauseBtn.textContent = '继续';
                 restartBtn.disabled = false;
+                restartBtn.textContent = '退出游戏';
                 break;
             case GameState.TIME_UP:
             case GameState.GAME_OVER:
                 pauseBtn.disabled = true;
-                restartBtn.disabled = true;
+                // 修改：让退出游戏按钮始终保持启用状态
+                restartBtn.disabled = false;
+                break;
+            case GameState.GAME_SETTLEMENT:
+                // 结算状态下显示退出游戏
+                pauseBtn.disabled = true;
+                restartBtn.disabled = false;
+                restartBtn.textContent = '退出游戏';
                 break;
         }
         

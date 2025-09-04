@@ -40,6 +40,9 @@ class WordManager {
         this.wordsPerPage = 10; // 每页单词数量
         this.level = 'cet4'; // 默认四级单词
         this.onPageChangeCallback = null; // 页面变化回调
+        
+        // 加载本地缓存的进度数据
+        this.loadProgressData();
     }
 
     // 加载单词数据
@@ -105,6 +108,8 @@ class WordManager {
         if (this.progressData[mode]) {
             this.currentStudyMode = mode;
             console.log(`切换到学习模式: ${mode}`);
+            // 保存进度数据
+            this.saveProgressData();
         } else {
             console.error(`不支持的学习模式: ${mode}`);
         }
@@ -155,6 +160,9 @@ class WordManager {
                 progress.requiredLetters = currentWord.word.toLowerCase().split('');
                 console.log(`拼单词模式 - 需要拼写: ${progress.requiredLetters.join('')}`);
             }
+            
+            // 保存进度数据
+            this.saveProgressData();
             
             console.log(`选中学习单词: 第${progress.currentPage + 1}页第${relativeIndex + 1}个 - ${this.words[absoluteIndex].word} - ${this.words[absoluteIndex].meaning}`);
             console.log(`绝对索引: ${absoluteIndex}, 相对索引: ${relativeIndex}, 学习模式: ${this.currentStudyMode}`);
@@ -469,6 +477,9 @@ class WordManager {
     
     // 处理单词完成后的通用逻辑
     handleWordCompletion(progress) {
+        // 保存进度数据
+        this.saveProgressData();
+        
         // 拼单词模式和单词匹配模式不自动进入下一页，由游戏结算后返回单词墙
         if (this.currentStudyMode === 'pindanci') {
             console.log('拼单词模式完成，等待显示结算界面');
@@ -635,6 +646,8 @@ class WordManager {
         if (progress.currentPage < maxPage) {
             progress.currentPage++;
             console.log(`[模式: ${this.currentStudyMode}] 进入第${progress.currentPage + 1}页`);
+            // 保存进度数据
+            this.saveProgressData();
             return true;
         }
         return false;
@@ -646,6 +659,8 @@ class WordManager {
         if (progress.currentPage > 0) {
             progress.currentPage--;
             console.log(`[模式: ${this.currentStudyMode}] 返回第${progress.currentPage + 1}页`);
+            // 保存进度数据
+            this.saveProgressData();
             return true;
         }
         return false;
@@ -758,6 +773,81 @@ class WordManager {
                 '你真棒，你已掌握这些单词' : 
                 '再接再厉，下次一定可以全对'
         };
+    }
+    
+    // 保存进度数据到本地存储
+    saveProgressData() {
+        try {
+            // 将Set和Map转换为数组以便存储
+            const serializableData = {};
+            for (let mode in this.progressData) {
+                const modeData = this.progressData[mode];
+                serializableData[mode] = {
+                    completedWords: Array.from(modeData.completedWords),
+                    selectedWordIndex: modeData.selectedWordIndex,
+                    currentPage: modeData.currentPage,
+                    fishCaught: modeData.fishCaught,
+                    targetFishCount: modeData.targetFishCount,
+                    currentWordIndex: modeData.currentWordIndex || 0,
+                    errorCount: modeData.errorCount || 0,
+                    wordErrors: modeData.wordErrors ? Array.from(modeData.wordErrors.entries()) : [],
+                    spelledLetters: modeData.spelledLetters || [],
+                    requiredLetters: modeData.requiredLetters || []
+                };
+            }
+            
+            const dataToSave = {
+                progressData: serializableData,
+                currentStudyMode: this.currentStudyMode,
+                level: this.level
+            };
+            
+            localStorage.setItem('fishingGameWordProgress', JSON.stringify(dataToSave));
+            console.log('学习进度已保存到本地存储');
+        } catch (error) {
+            console.warn('无法保存学习进度:', error);
+        }
+    }
+
+    // 从本地存储加载进度数据
+    loadProgressData() {
+        try {
+            const saved = localStorage.getItem('fishingGameWordProgress');
+            if (saved) {
+                const parsedData = JSON.parse(saved);
+                console.log('加载的学习进度:', parsedData);
+                
+                // 恢复进度数据
+                if (parsedData.progressData) {
+                    for (let mode in parsedData.progressData) {
+                        if (this.progressData[mode]) {
+                            const savedModeData = parsedData.progressData[mode];
+                            this.progressData[mode].completedWords = new Set(savedModeData.completedWords || []);
+                            this.progressData[mode].selectedWordIndex = savedModeData.selectedWordIndex || 0;
+                            this.progressData[mode].currentPage = savedModeData.currentPage || 0;
+                            this.progressData[mode].fishCaught = savedModeData.fishCaught || 0;
+                            this.progressData[mode].targetFishCount = savedModeData.targetFishCount || 
+                                (mode === 'pindanci' ? 1 : mode === 'dancipipei' ? 10 : 20);
+                            this.progressData[mode].currentWordIndex = savedModeData.currentWordIndex || 0;
+                            this.progressData[mode].errorCount = savedModeData.errorCount || 0;
+                            this.progressData[mode].wordErrors = new Map(savedModeData.wordErrors || []);
+                            this.progressData[mode].spelledLetters = savedModeData.spelledLetters || [];
+                            this.progressData[mode].requiredLetters = savedModeData.requiredLetters || [];
+                        }
+                    }
+                }
+                
+                // 恢复其他设置
+                this.currentStudyMode = parsedData.currentStudyMode || 'beidanci';
+                this.level = parsedData.level || 'cet4';
+                
+                console.log('学习进度加载完成');
+            } else {
+                console.log('没有找到保存的学习进度数据');
+            }
+        } catch (error) {
+            console.warn('无法加载学习进度:', error);
+        }
     }
     
     // 数组打乱工具方法

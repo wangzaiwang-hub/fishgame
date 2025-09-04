@@ -459,13 +459,21 @@ class WordWallManager {
         this.drawRoundedRect(ctx, btn.x, btn.y, btn.width, btn.height, radius);
         ctx.stroke();
         
-        // 按钮文字
+        // 按钮文字（根据学习模式显示不同的文本）
         ctx.fillStyle = '#FFFFFF';
         ctx.font = 'bold 22px Arial'; // 增加字体大小从20px到22px
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         
-        ctx.fillText('开始背单词', btn.x + btn.width / 2, btn.y + btn.height / 2);
+        // 根据学习模式显示不同的按钮文本
+        let buttonText = '开始背单词';
+        if (this.studyMode === 'pindanci') {
+            buttonText = '开始拼单词';
+        } else if (this.studyMode === 'dancipipei') {
+            buttonText = '开始单词匹配';
+        }
+        
+        ctx.fillText(buttonText, btn.x + btn.width / 2, btn.y + btn.height / 2);
     }
     
     // 渲染说明文字
